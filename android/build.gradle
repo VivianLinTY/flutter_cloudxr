@@ -1,0 +1,51 @@
+buildscript {
+    ext.kotlin_version = '1.6.10'
+    repositories {
+        google()
+        mavenCentral()
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.1.2'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        jcenter()
+        mavenLocal()
+    }
+}
+
+rootProject.buildDir = '../build'
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(':app')
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
+
+task extractCloudXR(type: Copy)  {
+    from zipTree("${project.rootDir}/libs/CloudXR.aar")
+    into "${project.rootDir}/libs/CloudXR"
+}
+
+task extractOboe(type: Copy) {
+    // Copy prefab folders into the expected layout for gradle 3.6
+    from zipTree("${project.rootDir}/libs/oboe-1.5.0.aar")
+    into "${project.rootDir}/libs/Oboe"
+    include "**/*.so"
+    include "**/*.h"
+    eachFile {
+        it.path = it.path.replaceFirst("prefab/modules/oboe/", "");
+        it.path = it.path.replaceFirst("libs/android.", "jni/");
+    }
+}

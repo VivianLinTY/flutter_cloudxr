@@ -1,0 +1,3 @@
+[submodule "libwebrtc"]
+	path = android/libwebrtc
+	url = git@gitlab.com:Zoe_Lin/libwebrtc.git
