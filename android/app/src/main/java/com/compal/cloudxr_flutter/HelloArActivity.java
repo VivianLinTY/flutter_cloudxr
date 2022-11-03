@@ -50,12 +50,15 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
+import android.text.TextUtils;
 import android.util.Size;
 import android.view.Display;
 import android.view.GestureDetector;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import javax.microedition.khronos.egl.EGLConfig;
@@ -65,6 +68,13 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import io.flutter.embedding.android.FlutterActivity;
+import io.flutter.embedding.android.FlutterView;
+import io.flutter.embedding.android.TransparencyMode;
+import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.plugin.common.EventChannel;
+import io.flutter.plugin.common.MethodChannel;
+import io.flutter.plugins.GeneratedPluginRegistrant;
 
 import androidx.annotation.NonNull;
 
@@ -83,6 +93,9 @@ public class HelloArActivity extends FlutterActivity
     private static final String TAG = "CXR ArCore";
     private static final int SNACKBAR_UPDATE_INTERVAL_MILLIS = 1000; // In milliseconds.
 
+    private static final String MESSAGES_CHANNEL = "com.compal.cloudxr/messages";
+    private static final String EVENTS_CHANNEL = "com.compal.cloudxr/events";
+
     SharedPreferences prefs = null;
     final String cloudIpAddrPref = "cxr_last_server_ip_addr";
     final String cloudAnchorPref = "cxr_last_cloud_anchor";
@@ -91,13 +104,16 @@ public class HelloArActivity extends FlutterActivity
     final String enableMediaPipePref = "mediapipe_last_enable";
 
     private GLSurfaceView surfaceView;
-    private Button button;
     private String cmdlineFromIntent = "";
 
     private boolean wasResumed = false;
     private boolean viewportChanged = false;
     private int viewportWidth;
     private int viewportHeight;
+
+    private MethodChannel methodChannel;
+    private EventChannel eventChannel;
+    private EventChannel.EventSink eventSink;
 
     // Opaque native pointer to the native application instance.
     private long nativeApplication;
@@ -130,13 +146,31 @@ public class HelloArActivity extends FlutterActivity
     private Handler mHandler;
 
     @Override
+    public TransparencyMode getTransparencyMode() {
+        return TransparencyMode.transparent;
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         prefs = getSharedPreferences("cloud_xr_prefs", Context.MODE_PRIVATE);
 
-        setContentView(R.layout.activity_main);
-        surfaceView = (GLSurfaceView) findViewById(R.id.surfaceview);
+        FrameLayout layout = findViewById(android.R.id.content);
+
+        for (int i = 0; i < layout.getChildCount(); i++) {
+            View view = layout.getChildAt(i);
+            if (view instanceof FlutterView) {
+                ((FlutterView) view).setOnTouchListener((v, event) -> {
+                    gestureDetector.onTouchEvent(event);
+                    return super.onTouchEvent(event);
+                });
+            }
+        }
+
+        surfaceView = new GLSurfaceView(this);
+        layout.addView(surfaceView, 0, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
         // Set up tap listener.
         gestureDetector =
@@ -162,8 +196,8 @@ public class HelloArActivity extends FlutterActivity
                             }
                         });
 
-        surfaceView.setOnTouchListener(
-                (View v, MotionEvent event) -> gestureDetector.onTouchEvent(event));
+//        surfaceView.setOnTouchListener(
+//                (View v, MotionEvent event) -> gestureDetector.onTouchEvent(event));
 
         // Set up renderer.
         surfaceView.setPreserveEGLContextOnPause(true);
@@ -172,15 +206,6 @@ public class HelloArActivity extends FlutterActivity
         surfaceView.setRenderer(this);
         surfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
         surfaceView.setWillNotDraw(false);
-
-        button = findViewById(R.id.button);
-        button.setOnClickListener(view -> {
-            if (button.getText().toString().equals(getString(R.string.button_start))) {
-                doResume();
-            } else {
-                doPause();
-            }
-        });
 
         // check for any data passed to our activity that we want to handle
         cmdlineFromIntent = getIntent().getStringExtra("args");
@@ -221,7 +246,50 @@ public class HelloArActivity extends FlutterActivity
                 }
             }
         };
+    }
 
+    @Override
+    public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
+        super.configureFlutterEngine(flutterEngine);
+        if (null == methodChannel) {
+            methodChannel = new MethodChannel(
+                    flutterEngine.getDartExecutor().getBinaryMessenger(), MESSAGES_CHANNEL);
+        }
+        methodChannel.setMethodCallHandler(
+                (call, result) -> {
+                    // Note: this method is invoked on the main thread.
+                    if (call.method.equals("stop_cloudxr")) {
+                        result.success("1");
+                        JniInterface.onTouched(nativeApplication, 0, 0, true);
+                    } else {
+                        result.notImplemented();
+                    }
+                }
+        );
+        if (null == eventChannel) {
+            eventChannel = new EventChannel(flutterEngine.getDartExecutor().getBinaryMessenger()
+                    , EVENTS_CHANNEL);
+        }
+        eventChannel.setStreamHandler(new EventChannel.StreamHandler() {
+            @Override
+            public void onListen(Object arguments, EventChannel.EventSink events) {
+                eventSink = events;
+            }
+
+            @Override
+            public void onCancel(Object arguments) {
+                eventSink = null;
+            }
+        });
+    }
+
+    @Override
+    public void cleanUpFlutterEngine(@NonNull FlutterEngine flutterEngine) {
+        super.cleanUpFlutterEngine(flutterEngine);
+        methodChannel.setMethodCallHandler(null);
+        methodChannel = null;
+        eventChannel.setStreamHandler(null);
+        eventChannel = null;
     }
 
     public void setParams(String cloudIp, String cloudAnchorId, String webRtcIp, String webRtcRoomId,
@@ -267,9 +335,6 @@ public class HelloArActivity extends FlutterActivity
         }
         WebRtcUtils.sInstance.startCall(getApplicationContext(),
                 prefs.getBoolean(enableMediaPipePref, false));
-
-        button.setVisibility(View.VISIBLE);
-        button.setText(R.string.button_stop);
     }
 
     protected void checkLaunchOptions() {
@@ -314,10 +379,6 @@ public class HelloArActivity extends FlutterActivity
     }
 
     private void doPause() {
-        if (button.getText().toString().equals(getString(R.string.button_start))) {
-            //Already stop
-            return;
-        }
 
         if (null != WebRtcUtils.sInstance && null != WebRtcUtils.sInstance.peerConnectionClient) {
             WebRtcUtils.sInstance.stopCall();
@@ -329,8 +390,6 @@ public class HelloArActivity extends FlutterActivity
         planeStatusCheckingHandler.removeCallbacks(planeStatusCheckingRunnable);
 
         getSystemService(DisplayManager.class).unregisterDisplayListener(this);
-
-        button.setText(R.string.button_start);
     }
 
     @Override
@@ -369,6 +428,8 @@ public class HelloArActivity extends FlutterActivity
         viewportChanged = true;
     }
 
+    private boolean lastCloudXrStatus = false;
+
     @Override
     public void onDrawFrame(GL10 gl) {
         // Synchronized to avoid racing onDestroy.
@@ -376,6 +437,18 @@ public class HelloArActivity extends FlutterActivity
             if (nativeApplication == 0) {
                 return;
             }
+
+            boolean cloudXrStatus = JniInterface.hasCloudXrAnchor(nativeApplication);
+            if (lastCloudXrStatus != cloudXrStatus) {
+                lastCloudXrStatus = cloudXrStatus;
+                runOnUiThread(() -> {
+                    if (null != eventSink) {
+                        eventSink.success(cloudXrStatus ?
+                                "start_cloudxr" : "stop_cloudxr");
+                    }
+                });
+            }
+
             if (viewportChanged) {
                 int displayRotation = getWindowManager().getDefaultDisplay().getRotation();
                 JniInterface.onDisplayGeometryChanged(

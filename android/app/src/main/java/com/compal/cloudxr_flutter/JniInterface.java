@@ -101,6 +101,8 @@ public class JniInterface {
      */
     public static native boolean hasDetectedPlanes(long nativeApplication);
 
+    public static native boolean hasCloudXrAnchor(long nativeApplication);
+
     public static Bitmap loadImage(String imageName) {
 
         try {

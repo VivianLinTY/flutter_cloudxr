@@ -107,6 +107,10 @@ class HelloArApplication {
     return plane_count_ > 0 || using_image_anchors_ || base_frame_calibrated_;
   }
 
+  bool HasCloudXrAnchor() const {
+    return anchor_ && base_frame_calibrated_;
+  }
+
  private:
   void UpdateImageAnchors();
 

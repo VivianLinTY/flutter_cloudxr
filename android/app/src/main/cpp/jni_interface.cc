@@ -164,6 +164,12 @@ JNI_METHOD(jboolean, hasDetectedPlanes)
       native(native_application)->HasDetectedPlanes() ? JNI_TRUE : JNI_FALSE);
 }
 
+JNI_METHOD(jboolean, hasCloudXrAnchor)
+(JNIEnv *, jclass, jlong native_application) {
+    return static_cast<jboolean>(
+            native(native_application)->HasCloudXrAnchor() ? JNI_TRUE : JNI_FALSE);
+}
+
 JNIEnv *GetJniEnv() {
   JNIEnv *env;
   jint result = g_vm->AttachCurrentThread(&env, nullptr);
