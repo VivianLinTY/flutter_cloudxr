@@ -50,7 +50,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
-import android.text.TextUtils;
 import android.util.Size;
 import android.view.Display;
 import android.view.GestureDetector;
@@ -71,10 +70,8 @@ import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.android.FlutterView;
 import io.flutter.embedding.android.TransparencyMode;
 import io.flutter.embedding.engine.FlutterEngine;
-import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.MethodChannel;
-import io.flutter.plugins.GeneratedPluginRegistrant;
 
 import androidx.annotation.NonNull;
 
@@ -246,6 +243,14 @@ public class HelloArActivity extends FlutterActivity
                 }
             }
         };
+
+//        Button button = new Button(this);
+//        FrameLayout.LayoutParams fl = new FrameLayout.LayoutParams(400, 100);
+//        fl.gravity = Gravity.CENTER;
+//        layout.addView(button, fl);
+//        button.setOnClickListener(view -> {
+//            UdpClient.getInstance().sendByteCmd(("Pos,3").getBytes(), 1001);
+//        });
     }
 
     @Override
@@ -308,6 +313,8 @@ public class HelloArActivity extends FlutterActivity
 
         JniInterface.setArgs(nativeApplication, "-s " + cloudIp + " -c " +
                 (hostCloudAnchor ? "host" : cloudAnchorId));
+
+//        UdpClient.getInstance().connect(cloudIp, 8001);
     }
 
     public void doResume() {
