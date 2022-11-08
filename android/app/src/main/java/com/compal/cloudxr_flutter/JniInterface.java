@@ -104,7 +104,7 @@ public class JniInterface {
 
     public static native boolean hasCloudXrAnchor(long nativeApplication);
 
-    public static native Vector<Float> getHeadPose(long nativeApplication);
+//    public static native Vector<Float> getHeadPose(long nativeApplication);
 
     public static Bitmap loadImage(String imageName) {
 

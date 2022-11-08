@@ -117,7 +117,7 @@ namespace hello_ar {
             return anchor_ && base_frame_calibrated_;
         }
 
-        std::vector<float> GetHeadPose();
+//        std::vector<float> GetHeadPose();
 
     private:
         void UpdateImageAnchors();

@@ -1392,15 +1392,15 @@ namespace hello_ar {
         }
     }
 
-    std::vector<float> HelloArApplication::GetHeadPose() {
-        if (!cloudxr_client_->IsRunning()) {
-            return {};
-        }
-        const cxrError status = cloudxr_client_->Latch();
-        if (status == cxrError_Success) {
-            return cloudxr_client_->head_pose;
-        } else {
-            return {};
-        }
-    }
+//    std::vector<float> HelloArApplication::GetHeadPose() {
+//        if (!cloudxr_client_->IsRunning()) {
+//            return {};
+//        }
+//        const cxrError status = cloudxr_client_->Latch();
+//        if (status == cxrError_Success) {
+//            return cloudxr_client_->head_pose;
+//        } else {
+//            return {};
+//        }
+//    }
 }  // namespace hello_ar

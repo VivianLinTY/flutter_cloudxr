@@ -194,8 +194,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                   )
                                 ]))
                       ])
-                // : _isStart
-                //     ? const Icon(Icons.add, size: 30, color: Colors.white)
+                : _isStart
+                    ? const Icon(Icons.add, size: 30, color: Colors.white)
                     : Container(width: 0)),
         _isStart
             ? Row(mainAxisAlignment: MainAxisAlignment.end, children: [

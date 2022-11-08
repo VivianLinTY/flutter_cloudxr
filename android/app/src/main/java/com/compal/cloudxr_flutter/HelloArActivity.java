@@ -456,14 +456,14 @@ public class HelloArActivity extends FlutterActivity
                 });
             }
 
-            Vector<Float> vector = JniInterface.getHeadPose(nativeApplication);
-            if (!vector.isEmpty()) {
-                runOnUiThread(() -> {
-                    if (null != eventSink) {
-                        eventSink.success("Rot," + -vector.get(0) + "," + vector.get(1) + "," + vector.get(2) + "," + vector.get(3));
-                    }
-                });
-            }
+//            Vector<Float> vector = JniInterface.getHeadPose(nativeApplication);
+//            if (!vector.isEmpty()) {
+//                runOnUiThread(() -> {
+//                    if (null != eventSink) {
+//                        eventSink.success("Rot," + -vector.get(0) + "," + vector.get(1) + "," + vector.get(2) + "," + vector.get(3));
+//                    }
+//                });
+//            }
 
             if (viewportChanged) {
                 int displayRotation = getWindowManager().getDefaultDisplay().getRotation();
@@ -521,28 +521,28 @@ public class HelloArActivity extends FlutterActivity
     /**
      * Call from the GLThread to save a picture of the current frame.
      */
-    private void getCurrentFrame() {
-        int[] pixelData = new int[viewportWidth * viewportHeight];
-
-        // Read the pixels from the current GL frame.
-        IntBuffer buf = IntBuffer.wrap(pixelData);
-        buf.position(0);
-        GLES20.glReadPixels(0, 0, viewportWidth, viewportHeight,
-                GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf);
-
-        // Convert the pixel data from RGBA to what Android wants, ARGB.
-        int[] bitmapData = new int[pixelData.length];
-        for (int i = 0; i < viewportHeight; i++) {
-            for (int j = 0; j < viewportWidth; j++) {
-                int p = pixelData[i * viewportWidth + j];
-                int b = (p & 0x00ff0000) >> 16;
-                int r = (p & 0x000000ff) << 16;
-                int ga = p & 0xff00ff00;
-                bitmapData[(viewportHeight - i - 1) * viewportWidth + j] = ga | r | b;
-            }
-        }
-        transferRgbToWebRtc(bitmapData, viewportWidth, viewportHeight);
-    }
+//    private void getCurrentFrame() {
+//        int[] pixelData = new int[viewportWidth * viewportHeight];
+//
+//        // Read the pixels from the current GL frame.
+//        IntBuffer buf = IntBuffer.wrap(pixelData);
+//        buf.position(0);
+//        GLES20.glReadPixels(0, 0, viewportWidth, viewportHeight,
+//                GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf);
+//
+//        // Convert the pixel data from RGBA to what Android wants, ARGB.
+//        int[] bitmapData = new int[pixelData.length];
+//        for (int i = 0; i < viewportHeight; i++) {
+//            for (int j = 0; j < viewportWidth; j++) {
+//                int p = pixelData[i * viewportWidth + j];
+//                int b = (p & 0x00ff0000) >> 16;
+//                int r = (p & 0x000000ff) << 16;
+//                int ga = p & 0xff00ff00;
+//                bitmapData[(viewportHeight - i - 1) * viewportWidth + j] = ga | r | b;
+//            }
+//        }
+//        transferRgbToWebRtc(bitmapData, viewportWidth, viewportHeight);
+//    }
 
     int fromByteArray(byte[] bytes) {
         return ((bytes[0] & 0xFF) << 24) |
@@ -609,45 +609,45 @@ public class HelloArActivity extends FlutterActivity
         }
     }
 
-    private Size chooseSupportedSize() {
-        Display display = getWindowManager().getDefaultDisplay();
-        android.graphics.Point displaySize = new android.graphics.Point();
-        display.getSize(displaySize);
-        Size targetSize = new Size(displaySize.x, displaySize.y);
-        CameraManager cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-        try {
-            for (String id : cameraManager.getCameraIdList()) {
-                CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(id);
-                int facing = characteristics.get(CameraCharacteristics.LENS_FACING);
-                if (facing == CameraCharacteristics.LENS_FACING_BACK) {
-                    StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-                    Size[] outputSizes = map.getOutputSizes(SurfaceTexture.class);
-                    Size optimalSize = null;
-                    double targetRatio = (double) targetSize.getWidth() / (double) targetSize.getHeight();
-                    LogUtils.d(TAG, String.format("Camera target size ratio: %f width: %d", targetRatio, targetSize.getWidth()));
-                    double minCost = 1.7976931348623157E308D;
-                    int var10 = outputSizes.length;
-
-                    for (int var11 = 0; var11 < var10; ++var11) {
-                        Size size = outputSizes[var11];
-                        double aspectRatio = (double) size.getWidth() / (double) size.getHeight();
-                        double ratioDiff = Math.abs(aspectRatio - targetRatio);
-                        double cost = (ratioDiff > 0.25D ? 10000.0D + ratioDiff * (double) targetSize.getHeight() : 0.0D) + (double) Math.abs(size.getWidth() - targetSize.getWidth());
-                        LogUtils.d(TAG, String.format("Camera size candidate width: %d height: %d ratio: %f cost: %f", size.getWidth(), size.getHeight(), aspectRatio, cost));
-                        if (cost < minCost) {
-                            optimalSize = size;
-                            minCost = cost;
-                        }
-                    }
-
-                    if (optimalSize != null) {
-                        LogUtils.d(TAG, String.format("Optimal camera size width: %d height: %d", optimalSize.getWidth(), optimalSize.getHeight()));
-                    }
-                    return optimalSize;
-                }
-            }
-        } catch (Exception ignore) {
-        }
-        return new Size(320, 240);
-    }
+//    private Size chooseSupportedSize() {
+//        Display display = getWindowManager().getDefaultDisplay();
+//        android.graphics.Point displaySize = new android.graphics.Point();
+//        display.getSize(displaySize);
+//        Size targetSize = new Size(displaySize.x, displaySize.y);
+//        CameraManager cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+//        try {
+//            for (String id : cameraManager.getCameraIdList()) {
+//                CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(id);
+//                int facing = characteristics.get(CameraCharacteristics.LENS_FACING);
+//                if (facing == CameraCharacteristics.LENS_FACING_BACK) {
+//                    StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+//                    Size[] outputSizes = map.getOutputSizes(SurfaceTexture.class);
+//                    Size optimalSize = null;
+//                    double targetRatio = (double) targetSize.getWidth() / (double) targetSize.getHeight();
+//                    LogUtils.d(TAG, String.format("Camera target size ratio: %f width: %d", targetRatio, targetSize.getWidth()));
+//                    double minCost = 1.7976931348623157E308D;
+//                    int var10 = outputSizes.length;
+//
+//                    for (int var11 = 0; var11 < var10; ++var11) {
+//                        Size size = outputSizes[var11];
+//                        double aspectRatio = (double) size.getWidth() / (double) size.getHeight();
+//                        double ratioDiff = Math.abs(aspectRatio - targetRatio);
+//                        double cost = (ratioDiff > 0.25D ? 10000.0D + ratioDiff * (double) targetSize.getHeight() : 0.0D) + (double) Math.abs(size.getWidth() - targetSize.getWidth());
+//                        LogUtils.d(TAG, String.format("Camera size candidate width: %d height: %d ratio: %f cost: %f", size.getWidth(), size.getHeight(), aspectRatio, cost));
+//                        if (cost < minCost) {
+//                            optimalSize = size;
+//                            minCost = cost;
+//                        }
+//                    }
+//
+//                    if (optimalSize != null) {
+//                        LogUtils.d(TAG, String.format("Optimal camera size width: %d height: %d", optimalSize.getWidth(), optimalSize.getHeight()));
+//                    }
+//                    return optimalSize;
+//                }
+//            }
+//        } catch (Exception ignore) {
+//        }
+//        return new Size(320, 240);
+//    }
 }
