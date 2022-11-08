@@ -146,7 +146,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               children: <Widget>[
                                 IconButton(
                                   icon: const Icon(Icons.arrow_drop_up),
-                                  onPressed: () => _sendUdpCmd("Pos,3"),
+                                  onPressed: () => _sendUdpCmd("Pos,5"),
                                 ),
                                 Row(children: [
                                   IconButton(
@@ -160,7 +160,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 ]),
                                 IconButton(
                                   icon: const Icon(Icons.arrow_drop_down),
-                                  onPressed: () => _sendUdpCmd("Pos,2"),
+                                  onPressed: () => _sendUdpCmd("Pos,4"),
                                 )
                               ],
                             )),
@@ -186,11 +186,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                 children: [
                                   IconButton(
                                     icon: const Icon(Icons.arrow_circle_up),
-                                    onPressed: () => _sendUdpCmd("Pos,5"),
+                                    onPressed: () => _sendUdpCmd("Pos,3"),
                                   ),
                                   IconButton(
                                     icon: const Icon(Icons.arrow_circle_down),
-                                    onPressed: () => _sendUdpCmd("Pos,4"),
+                                    onPressed: () => _sendUdpCmd("Pos,2"),
                                   )
                                 ]))
                       ])
@@ -206,17 +206,18 @@ class _MyHomePageState extends State<MyHomePage> {
                     fillColor: Colors.white,
                     padding: const EdgeInsets.all(8.0),
                     shape: const CircleBorder(),
-                    child: const Icon(Icons.touch_app, size: 25.0),
+                    child: const Icon(Icons.touch_app, size: 30.0),
                   ),
-                  Container(height: 20),
+                  Container(height: 10),
                   RawMaterialButton(
                     onPressed: _stopCloudXr,
                     elevation: 2.0,
                     fillColor: Colors.white,
                     padding: const EdgeInsets.all(8.0),
                     shape: const CircleBorder(),
-                    child: const Icon(Icons.stop, size: 25.0),
-                  )
+                    child: const Icon(Icons.stop, size: 30.0),
+                  ),
+                  Container(height: 10)
                 ])
               ])
             : Container(width: 0)
