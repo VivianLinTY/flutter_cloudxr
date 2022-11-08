@@ -80,6 +80,7 @@ import com.compal.utils.WebRtcUtils;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.nio.IntBuffer;
+import java.util.Vector;
 
 /**
  * This is a simple example that shows how to create an augmented reality (AR) application using the
@@ -450,8 +451,16 @@ public class HelloArActivity extends FlutterActivity
                 lastCloudXrStatus = cloudXrStatus;
                 runOnUiThread(() -> {
                     if (null != eventSink) {
-                        eventSink.success(cloudXrStatus ?
-                                "start_cloudxr" : "stop_cloudxr");
+                        eventSink.success(cloudXrStatus ? "start_cloudxr" : "stop_cloudxr");
+                    }
+                });
+            }
+
+            Vector<Float> vector = JniInterface.getHeadPose(nativeApplication);
+            if (!vector.isEmpty()) {
+                runOnUiThread(() -> {
+                    if (null != eventSink) {
+                        eventSink.success("Rot," + -vector.get(0) + "," + vector.get(1) + "," + vector.get(2) + "," + vector.get(3));
                     }
                 });
             }

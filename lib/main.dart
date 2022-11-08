@@ -64,6 +64,8 @@ class _MyHomePageState extends State<MyHomePage> {
         _isShowMenu = false;
       } else if ('start_cloudxr' == message) {
         _isStart = true;
+      } else if (message.contains("Rot")) {
+        _sendUdpCmd(message);
       }
     });
   }
@@ -89,6 +91,10 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  void _sendHeadPos() async {
+    _sendUdpCmd("Rot,");
+  }
+
   @override
   void initState() {
     super.initState();
@@ -96,6 +102,7 @@ class _MyHomePageState extends State<MyHomePage> {
         .receiveBroadcastStream()
         .listen(_onEvent, onError: _onError);
     _initUdpClient();
+    _sendHeadPos();
   }
 
   @override
@@ -110,7 +117,6 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
-  // _sendUdpCmd("Pos,3")
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -188,8 +194,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                   )
                                 ]))
                       ])
-                : _isStart
-                    ? const Icon(Icons.add, size: 30, color: Colors.white)
+                // : _isStart
+                //     ? const Icon(Icons.add, size: 30, color: Colors.white)
                     : Container(width: 0)),
         _isStart
             ? Row(mainAxisAlignment: MainAxisAlignment.end, children: [

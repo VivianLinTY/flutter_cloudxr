@@ -170,6 +170,25 @@ JNI_METHOD(jboolean, hasCloudXrAnchor)
             native(native_application)->HasCloudXrAnchor() ? JNI_TRUE : JNI_FALSE);
 }
 
+JNI_METHOD(jobject, getHeadPose)
+(JNIEnv *env, jclass, jlong native_application) {
+    jclass vectorClass = env->FindClass("java/util/Vector");
+    jclass floatClass = env->FindClass("java/lang/Float");
+
+    jmethodID mid = env->GetMethodID(vectorClass, "<init>", "()V");
+    jobject vector = env->NewObject(vectorClass, mid);
+    jmethodID addMethodID = env->GetMethodID(vectorClass, "add", "(Ljava/lang/Object;)Z");
+
+    std::vector<float> vec = native(native_application)->GetHeadPose();
+    for(float f : vec) {
+        jmethodID floatConstructorID = env->GetMethodID(floatClass, "<init>", "(F)V");
+        // Now, we have object created by Float(f)
+        jobject floatValue = env->NewObject(floatClass, floatConstructorID, f);
+        env->CallBooleanMethod(vector, addMethodID, floatValue);
+    }
+    return vector;
+}
+
 JNIEnv *GetJniEnv() {
   JNIEnv *env;
   jint result = g_vm->AttachCurrentThread(&env, nullptr);

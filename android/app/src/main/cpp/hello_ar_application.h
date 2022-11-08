@@ -57,96 +57,105 @@
 namespace hello_ar {
 
 // HelloArApplication handles all application logics.
-class HelloArApplication {
- public:
-  // Constructor and deconstructor.
-  //HelloArApplication() = default;
-  HelloArApplication(AAssetManager* asset_manager);
-  ~HelloArApplication();
+    class HelloArApplication {
+    public:
+        // Constructor and deconstructor.
+        //HelloArApplication() = default;
+        HelloArApplication(AAssetManager *asset_manager);
 
-  bool Init();
-  void HandleLaunchOptions(std::string &cmdline);
-  void SetArgs(const std::string &args);
-  std::string GetServerIp();
-  void NotifyUserError(ArStatus stat, const char* filename, const int linenum, bool terminate = false);
+        ~HelloArApplication();
 
-  // OnPause is called on the UI thread from the Activity's onPause method.
-  void OnPause();
+        bool Init();
 
-  // OnResume is called on the UI thread from the Activity's onResume method.
-  void OnResume(void* env, void* context, void* activity);
+        void HandleLaunchOptions(std::string &cmdline);
 
-  // OnSurfaceCreated is called on the OpenGL thread when GLSurfaceView
-  // is created.
-  void OnSurfaceCreated();
+        void SetArgs(const std::string &args);
 
-  // OnDisplayGeometryChanged is called on the OpenGL thread when the
-  // render surface size or display rotation changes.
-  //
-  // @param display_rotation: current display rotation.
-  // @param width: width of the changed surface view.
-  // @param height: height of the changed surface view.
-  void OnDisplayGeometryChanged(int display_rotation, int width, int height);
+        std::string GetServerIp();
 
-  // OnDrawFrame is called on the OpenGL thread to render the next frame.
-  // @return int: error status.
-  int OnDrawFrame();
+        void NotifyUserError(ArStatus stat, const char *filename, const int linenum,
+                             bool terminate = false);
 
-  // OnDrawFrame is called to get camera's yuv data.
-  std::vector<uint8_t> getCameraFrame();
+        // OnPause is called on the UI thread from the Activity's onPause method.
+        void OnPause();
 
-  // OnTouched is called on the OpenGL thread after the user touches the screen.
-  // @param x: x position on the screen (pixels).
-  // @param y: y position on the screen (pixels).
-  // @param longPress: a long press occured.
-  void OnTouched(float x, float y, bool longPress);
+        // OnResume is called on the UI thread from the Activity's onResume method.
+        void OnResume(void *env, void *context, void *activity);
 
-  // Returns true if any planes have been detected.  Used for hiding the
-  // "searching for planes" snackbar.
-  bool HasDetectedPlanes() const {
-    return plane_count_ > 0 || using_image_anchors_ || base_frame_calibrated_;
-  }
+        // OnSurfaceCreated is called on the OpenGL thread when GLSurfaceView
+        // is created.
+        void OnSurfaceCreated();
 
-  bool HasCloudXrAnchor() const {
-    return anchor_ && base_frame_calibrated_;
-  }
+        // OnDisplayGeometryChanged is called on the OpenGL thread when the
+        // render surface size or display rotation changes.
+        //
+        // @param display_rotation: current display rotation.
+        // @param width: width of the changed surface view.
+        // @param height: height of the changed surface view.
+        void OnDisplayGeometryChanged(int display_rotation, int width, int height);
 
- private:
-  void UpdateImageAnchors();
+        // OnDrawFrame is called on the OpenGL thread to render the next frame.
+        // @return int: error status.
+        int OnDrawFrame();
 
-  static bool exiting_;
+        // OnDrawFrame is called to get camera's yuv data.
+        std::vector<uint8_t> getCameraFrame();
 
-  ArSession* ar_session_ = nullptr;
-  ArFrame* ar_frame_ = nullptr;
-  ArCameraIntrinsics* ar_camera_intrinsics_ = nullptr;
-  ArAnchor* anchor_ = nullptr;
+        // OnTouched is called on the OpenGL thread after the user touches the screen.
+        // @param x: x position on the screen (pixels).
+        // @param y: y position on the screen (pixels).
+        // @param longPress: a long press occured.
+        void OnTouched(float x, float y, bool longPress);
 
-  bool install_requested_ = false;
-  int display_width_ = 1;
-  int display_height_ = 1;
-  int display_rotation_ = 0;
-  int cam_image_width_ = 1920;
-  int cam_image_height_ = 1080;
+        // Returns true if any planes have been detected.  Used for hiding the
+        // "searching for planes" snackbar.
+        bool HasDetectedPlanes() const {
+            return plane_count_ > 0 || using_image_anchors_ || base_frame_calibrated_;
+        }
 
-  bool using_image_anchors_ = false;
-  std::unordered_map<int32_t, std::pair<ArAugmentedImage*, ArAnchor*>>
-      augmented_image_map;
+        bool HasCloudXrAnchor() const {
+            return anchor_ && base_frame_calibrated_;
+        }
 
-  bool using_dynamic_base_frame_ = true;
-  bool base_frame_calibrated_ = false;
-  glm::mat4 base_frame_;
+        std::vector<float> GetHeadPose();
 
-  AAssetManager* const asset_manager_;
+    private:
+        void UpdateImageAnchors();
 
-  BackgroundRenderer background_renderer_;
-  PlaneRenderer plane_renderer_;
+        static bool exiting_;
 
-  int32_t plane_count_ = 0;
+        ArSession *ar_session_ = nullptr;
+        ArFrame *ar_frame_ = nullptr;
+        ArCameraIntrinsics *ar_camera_intrinsics_ = nullptr;
+        ArAnchor *anchor_ = nullptr;
 
-  // CloudXR client interface class
-  class CloudXRClient;
-  std::unique_ptr<CloudXRClient> cloudxr_client_;
-};
+        bool install_requested_ = false;
+        int display_width_ = 1;
+        int display_height_ = 1;
+        int display_rotation_ = 0;
+        int cam_image_width_ = 1920;
+        int cam_image_height_ = 1080;
+
+        bool using_image_anchors_ = false;
+        std::unordered_map<int32_t, std::pair<ArAugmentedImage *, ArAnchor *>>
+                augmented_image_map;
+
+        bool using_dynamic_base_frame_ = true;
+        bool base_frame_calibrated_ = false;
+        glm::mat4 base_frame_;
+
+        AAssetManager *const asset_manager_;
+
+        BackgroundRenderer background_renderer_;
+        PlaneRenderer plane_renderer_;
+
+        int32_t plane_count_ = 0;
+
+        // CloudXR client interface class
+        class CloudXRClient;
+
+        std::unique_ptr<CloudXRClient> cloudxr_client_;
+    };
 }  // namespace hello_ar
 
 #endif  // C_ARCORE_HELLOE_AR_HELLO_AR_APPLICATION_H_

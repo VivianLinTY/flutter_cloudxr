@@ -45,6 +45,7 @@ import android.graphics.BitmapFactory;
 import android.opengl.GLUtils;
 
 import java.io.IOException;
+import java.util.Vector;
 
 /**
  * JNI interface to native layer.
@@ -102,6 +103,8 @@ public class JniInterface {
     public static native boolean hasDetectedPlanes(long nativeApplication);
 
     public static native boolean hasCloudXrAnchor(long nativeApplication);
+
+    public static native Vector<Float> getHeadPose(long nativeApplication);
 
     public static Bitmap loadImage(String imageName) {
 
