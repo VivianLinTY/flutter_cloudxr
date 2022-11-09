@@ -159,7 +159,7 @@ public class HelloArActivity extends FlutterActivity
         for (int i = 0; i < layout.getChildCount(); i++) {
             View view = layout.getChildAt(i);
             if (view instanceof FlutterView) {
-                ((FlutterView) view).setOnTouchListener((v, event) -> {
+                view.setOnTouchListener((v, event) -> {
                     gestureDetector.onTouchEvent(event);
                     return super.onTouchEvent(event);
                 });
@@ -266,7 +266,9 @@ public class HelloArActivity extends FlutterActivity
                     // Note: this method is invoked on the main thread.
                     if (call.method.equals("stop_cloudxr")) {
                         result.success("1");
-                        JniInterface.onTouched(nativeApplication, 0, 0, true);
+                        findViewById(android.R.id.content).postDelayed(() -> {
+                            JniInterface.onTouched(nativeApplication, 0, 0, true);
+                        }, 200);
                     } else {
                         result.notImplemented();
                     }
