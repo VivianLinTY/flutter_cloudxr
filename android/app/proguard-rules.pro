@@ -15,6 +15,26 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+
+ ## Flutter wrapper
+-keep class io.flutter.app.** { *; }
+-keep class io.flutter.plugin.**  { *; }
+-keep class io.flutter.util.** { *; }
+-keep class io.flutter.view.** { *; }
+-keep class io.flutter.** { *; }
+-keep class io.flutter.plugins.** { *; }
+-dontwarn io.flutter.embedding.**
+
+## Compal
+-keep class com.compal.cloudxr_flutter.JniInterface {*;}
+
+## CloudXR
 -keep class com.nvidia.** {*;}
 -keep interface com.nvidia.** {*;}
 -keep enum com.nvidia.** {*;}
+
+## WebRTC
+-keep class com.appwebrtc.** {*;}
+-keep class org.webrtc.** { *; }
+-keep class com.cloudwebrtc.webrtc.** { *; }
+-keep interface org.webrtc.** {*;}
