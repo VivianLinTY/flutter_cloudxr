@@ -217,6 +217,15 @@ class _MyHomePageState extends State<MyHomePage> {
                     shape: const CircleBorder(),
                     child: const Icon(Icons.stop, size: 30.0),
                   ),
+                  Container(height: 10),
+                  RawMaterialButton(
+                    onPressed: () => _sendUdpCmd("KeyDown,230"),
+                    elevation: 2.0,
+                    fillColor: Colors.white,
+                    padding: const EdgeInsets.all(8.0),
+                    shape: const CircleBorder(),
+                    child: const Icon(Icons.lock_open_outlined, size: 30.0),
+                  ),
                   Container(height: 10)
                 ])
               ])
