@@ -22,7 +22,6 @@ if (flutterVersionName == null) {
 }
 
 apply plugin: 'com.android.application'
-apply plugin: 'kotlin-android'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
 /*
@@ -53,12 +52,7 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-    kotlinOptions {
-        jvmTarget = '1.8'
-    }
-
     sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
         main.jniLibs.srcDirs = ["${project.rootDir}/libs/Oboe/jni"]
     }
 
@@ -131,7 +125,6 @@ flutter {
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation 'com.google.ar:core:1.26.0'
 //    natives 'com.google.ar:core:1.26.0' Change to extract aar
 
