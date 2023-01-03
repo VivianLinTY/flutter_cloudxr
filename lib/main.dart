@@ -39,7 +39,9 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   bool _isStart = false;
-  bool _isShowMenu = false;
+  bool _isShowPanel = false;  //All touch panel
+  bool _isShowMenu = false;  //Only menu panel
+  late DateTime _lastTouchTime;
   StreamSubscription? _streamSubscription;
   UDP? _udpSender;
 
@@ -66,6 +68,17 @@ class _MyHomePageState extends State<MyHomePage> {
         _isStart = true;
       } else if (message.contains("Rot")) {
         _sendUdpCmd(message);
+      } else if (message.contains("touch")) {
+        _isShowPanel = true;
+        _lastTouchTime = DateTime.now();
+        Future.delayed(const Duration(seconds: 5), () {
+          DateTime now = DateTime.now();
+          if (now.millisecondsSinceEpoch -
+                  _lastTouchTime.millisecondsSinceEpoch >=
+              5000) {
+            _hidePanel();
+          }
+        });
       }
     });
   }
@@ -85,9 +98,15 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  void _setMenu() {
+  void _setMenuVisibility() {
     setState(() {
       _isShowMenu = !_isShowMenu;
+    });
+  }
+
+  void _hidePanel() {
+    setState(() {
+      _isShowPanel = false;
     });
   }
 
@@ -127,13 +146,13 @@ class _MyHomePageState extends State<MyHomePage> {
         Positioned(
             top: 30.0,
             left: 30.0,
-            child: _isStart
+            child: _isStart && _isShowPanel
                 ? IconButton(
                     icon: const Icon(Icons.menu, color: Colors.white),
-                    onPressed: _setMenu)
+                    onPressed: _setMenuVisibility)
                 : Container(width: 0)),
         Center(
-            child: _isShowMenu
+            child: _isShowMenu && _isShowPanel
                 ? Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
@@ -194,10 +213,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                   )
                                 ]))
                       ])
-                : _isStart
+                : _isStart && _isShowPanel
                     ? const Icon(Icons.add, size: 30, color: Colors.white)
                     : Container(width: 0)),
-        _isStart
+        _isStart && _isShowPanel
             ? Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                 Column(mainAxisAlignment: MainAxisAlignment.end, children: [
                   RawMaterialButton(

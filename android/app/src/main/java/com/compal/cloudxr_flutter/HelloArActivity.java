@@ -39,10 +39,6 @@
 package com.compal.cloudxr_flutter;
 
 import android.graphics.Bitmap;
-import android.graphics.SurfaceTexture;
-import android.hardware.camera2.CameraCharacteristics;
-import android.hardware.camera2.CameraManager;
-import android.hardware.camera2.params.StreamConfigurationMap;
 import android.hardware.display.DisplayManager;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
@@ -51,12 +47,9 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
 import android.util.Size;
-import android.view.Display;
 import android.view.GestureDetector;
-import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
@@ -78,9 +71,6 @@ import androidx.annotation.NonNull;
 import com.compal.utils.HandResultUtils;
 import com.compal.utils.WebRtcUtils;
 import com.google.android.material.snackbar.Snackbar;
-
-import java.nio.IntBuffer;
-import java.util.Vector;
 
 /**
  * This is a simple example that shows how to create an augmented reality (AR) application using the
@@ -143,6 +133,7 @@ public class HelloArActivity extends FlutterActivity
     private HandlerThread mHandlerThread;
     private Handler mHandler;
 
+    @NonNull
     @Override
     public TransparencyMode getTransparencyMode() {
         return TransparencyMode.transparent;
@@ -179,6 +170,11 @@ public class HelloArActivity extends FlutterActivity
                             public boolean onSingleTapUp(final MotionEvent e) {
                                 surfaceView.queueEvent(
                                         () -> JniInterface.onTouched(nativeApplication, e.getX(), e.getY(), false));
+                                runOnUiThread(() -> {
+                                    if (null != eventSink) {
+                                        eventSink.success("touch");
+                                    }
+                                });
                                 return true;
                             }
 
@@ -266,9 +262,8 @@ public class HelloArActivity extends FlutterActivity
                     // Note: this method is invoked on the main thread.
                     if (call.method.equals("stop_cloudxr")) {
                         result.success("1");
-                        findViewById(android.R.id.content).postDelayed(() -> {
-                            JniInterface.onTouched(nativeApplication, 0, 0, true);
-                        }, 200);
+                        findViewById(android.R.id.content).postDelayed(() ->
+                                JniInterface.onTouched(nativeApplication, 0, 0, true), 200);
                     } else {
                         result.notImplemented();
                     }
