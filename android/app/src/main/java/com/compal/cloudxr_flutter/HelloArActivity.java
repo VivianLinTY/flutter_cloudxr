@@ -264,6 +264,12 @@ public class HelloArActivity extends FlutterActivity
                         result.success("1");
                         findViewById(android.R.id.content).postDelayed(() ->
                                 JniInterface.onTouched(nativeApplication, 0, 0, true), 200);
+                    } else if (call.method.contains("connect_to_cloudxr")) {
+                        result.success("1");
+                        String ip = call.method.replaceAll("connect_to_cloudxr", "");
+                        LogUtils.d(TAG, "edge ip = " + ip);
+                        setParams(ip, "", ip, "", false, false);
+                        doResume();
                     } else {
                         result.notImplemented();
                     }
@@ -361,8 +367,8 @@ public class HelloArActivity extends FlutterActivity
             String prevWebRtcIP = prefs.getString(webrtcIpAddrPref, "");
             String prevWebRtcRoom = prefs.getString(webrtcRoomIdPref, "");
             boolean prevEnableMediaPipe = prefs.getBoolean(enableMediaPipePref, false);
-            ServerIPDialog.show(this, prevCloudIP, prevCloudAnchor,
-                    prevWebRtcIP, prevWebRtcRoom, prevEnableMediaPipe);
+//            ServerIPDialog.show(this, prevCloudIP, prevCloudAnchor,
+//                    prevWebRtcIP, prevWebRtcRoom, prevEnableMediaPipe);
         } else {
             doResume();
         }

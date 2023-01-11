@@ -1,11 +1,13 @@
-import 'dart:async';
+import 'dart:convert';
 
+import 'package:cloudxr_flutter/myHomePage.dart';
+import 'package:cloudxr_flutter/utils.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:udp/udp.dart';
 
-const _platformMessages = MethodChannel('com.compal.cloudxr/messages');
-const _messageEvents = EventChannel('com.compal.cloudxr/events');
+import 'log.dart';
+
+const _tag = "Main";
+const TextStyle _popupTextStyle = TextStyle(fontSize: 20, color: Colors.black);
 
 void main() {
   runApp(const MyApp());
@@ -23,233 +25,149 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.blue,
           scaffoldBackgroundColor: Colors.transparent,
           backgroundColor: Colors.transparent),
-      home: const MyHomePage(title: 'Compal Flutter Demo'),
+      home: const MyAppList(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  final String title;
+class MyAppList extends StatefulWidget {
+  const MyAppList({Key? key}) : super(key: key);
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MyAppList> createState() => _MyAppListState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  bool _isStart = false;
-  bool _isShowPanel = false;  //All touch panel
-  bool _isShowMenu = false;  //Only menu panel
-  late DateTime _lastTouchTime;
-  StreamSubscription? _streamSubscription;
-  UDP? _udpSender;
+class _MyAppListState extends State<MyAppList> {
+  late Function _onSuccessCallback;
+  bool _showAppList = true;
 
-  Future<bool> _sendMessage(String message) async {
-    String response = '';
-    try {
-      response = await _platformMessages.invokeMethod(message);
-    } on PlatformException catch (e) {
-      response = "${e.message}";
-    }
-    return response == '1';
-  }
-
-  void _stopCloudXr() async {
-    await _sendMessage('stop_cloudxr');
-  }
-
-  void _onEvent(message) {
-    setState(() {
-      if ('stop_cloudxr' == message) {
-        _isStart = false;
-        _isShowMenu = false;
-      } else if ('start_cloudxr' == message) {
-        _isStart = true;
-      } else if (message.contains("Rot")) {
-        _sendUdpCmd(message);
-      } else if (message.contains("touch")) {
-        _isShowPanel = true;
-        _lastTouchTime = DateTime.now();
-        Future.delayed(const Duration(seconds: 5), () {
-          DateTime now = DateTime.now();
-          if (now.millisecondsSinceEpoch -
-                  _lastTouchTime.millisecondsSinceEpoch >=
-              5000) {
-            _hidePanel();
-          }
-        });
+  Future<void> _connectToEdgeServer(
+      String type, Map<String, dynamic> gameInfo, bool hasLaunchedGame) async {
+    String id = gameInfo["content_id"];
+    String response;
+    if (gameInfo["already_launched"]) {
+      response = await Utils.sendGetRequest("$type/$id/resume");
+    } else {
+      if (hasLaunchedGame) {
+        await Utils.sendGetRequest("/close");
       }
-    });
-  }
-
-  void _onError(error) {
-    print(error);
-  }
-
-  void _initUdpClient() async {
-    _udpSender = await UDP.bind(Endpoint.any(port: Port(8001)));
-  }
-
-  void _sendUdpCmd(String cmd) async {
-    if (null != _udpSender) {
-      await _udpSender!
-          .send(cmd.codeUnits, Endpoint.broadcast(port: Port(8001)));
+      response = await Utils.sendGetRequest("$type/$id/launch");
+    }
+    Map<String, dynamic> gameJson = jsonDecode(response);
+    if (gameJson["status"]) {
+      _onSuccessCallback(gameJson["game_server_ip"], id, type);
+    } else {
+      Future.delayed(const Duration(milliseconds: 2000), () {
+        _connectToEdgeServer(type, gameInfo, hasLaunchedGame);
+      });
     }
   }
 
-  void _setMenuVisibility() {
-    setState(() {
-      _isShowMenu = !_isShowMenu;
-    });
+  Widget _getItem(BuildContext context, Map<String, dynamic> list, int position,
+      String type, bool hasLaunchedGame) {
+    Map<String, dynamic> gameInfo = list["$position"];
+    return GestureDetector(
+        child: Padding(
+            padding: const EdgeInsets.all(5),
+            child: Column(children: [
+              Image.network(gameInfo["img_url"], width: 270, height: 120,
+                  errorBuilder: (context, error, stackTrace) {
+                return const SizedBox(width: 270, height: 120);
+              }),
+              Text(gameInfo["content_title"])
+            ])),
+        onTap: () {
+          setState(() {
+            _showAppList = false;
+          });
+          _connectToEdgeServer(type, gameInfo, hasLaunchedGame);
+        });
   }
 
-  void _hidePanel() {
-    setState(() {
-      _isShowPanel = false;
-    });
-  }
-
-  void _sendHeadPos() async {
-    _sendUdpCmd("Rot,");
+  Widget _getList(String type, EdgeInsets padding) {
+    return Container(
+        width: 290,
+        padding: padding,
+        alignment: Alignment.center,
+        child: FutureBuilder<String>(
+            //Get game list
+            future: Utils.sendGetRequest(type),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Text("loading $type...", style: _popupTextStyle);
+              } else if (snapshot.connectionState == ConnectionState.done) {
+                if (snapshot.hasData) {
+                  Map<String, dynamic> gameJson = jsonDecode(snapshot.data!);
+                  int listSize = gameJson["total_num"];
+                  if (gameJson["status"]) {
+                    bool hasLaunchedGame = false;
+                    for (int i = 0; i < listSize; i++) {
+                      Map<String, dynamic> gameInfo = gameJson[type]["$i"];
+                      if (gameInfo["already_launched"]) {
+                        hasLaunchedGame = true;
+                        break;
+                      }
+                    }
+                    return ListView.builder(
+                        itemCount: listSize,
+                        itemBuilder: (BuildContext context, int position) {
+                          return _getItem(context, gameJson[type], position,
+                              type, hasLaunchedGame);
+                        });
+                  } else {
+                    Future.delayed(const Duration(milliseconds: 2000), () {
+                      return _getList(type, padding);
+                    });
+                  }
+                }
+              } else if (snapshot.hasError) {
+                return Text('loading $type error!!', style: _popupTextStyle);
+              }
+              return Text('loading $type...', style: _popupTextStyle);
+            }));
   }
 
   @override
   void initState() {
     super.initState();
-    _streamSubscription = _messageEvents
-        .receiveBroadcastStream()
-        .listen(_onEvent, onError: _onError);
-    _initUdpClient();
-    _sendHeadPos();
+    Log.d(_tag, "initState");
+    _onSuccessCallback = (ip, id, type) {
+      Navigator.pushAndRemoveUntil<dynamic>(
+        context,
+        MaterialPageRoute<dynamic>(
+          builder: (BuildContext context) => MyHomePage(cloudXrIP: ip),
+        ),
+        (route) => false, //if you want to disable back feature set to false
+      );
+    };
   }
 
   @override
   void dispose() {
-    if (null != _streamSubscription) {
-      _streamSubscription!.cancel();
-      _streamSubscription = null;
-    }
-    if (null != _udpSender) {
-      _udpSender!.closed;
-    }
     super.dispose();
+    Log.d(_tag, "dispose");
   }
 
+  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(children: [
-        Center(
-            child: Text(_isStart ? '' : 'Touch panel to start cloudXR',
-                style: const TextStyle(color: Colors.white))),
-        Positioned(
-            top: 30.0,
-            left: 30.0,
-            child: _isStart && _isShowPanel
-                ? IconButton(
-                    icon: const Icon(Icons.menu, color: Colors.white),
-                    onPressed: _setMenuVisibility)
-                : Container(width: 0)),
-        Center(
-            child: _isShowMenu && _isShowPanel
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                        Container(
-                            color: const Color(0x66dddddd),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                IconButton(
-                                  icon: const Icon(Icons.arrow_drop_up),
-                                  onPressed: () => _sendUdpCmd("Pos,5"),
-                                ),
-                                Row(children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.arrow_left),
-                                    onPressed: () => _sendUdpCmd("Pos,0"),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.arrow_right),
-                                    onPressed: () => _sendUdpCmd("Pos,1"),
-                                  )
-                                ]),
-                                IconButton(
-                                  icon: const Icon(Icons.arrow_drop_down),
-                                  onPressed: () => _sendUdpCmd("Pos,4"),
-                                )
-                              ],
-                            )),
-                        Container(width: 20),
-                        Container(
-                            color: const Color(0x66dddddd),
-                            child: Row(children: [
-                              IconButton(
-                                icon: const Icon(Icons.arrow_back),
-                                onPressed: () => _sendUdpCmd("Pos,6"),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.arrow_forward),
-                                onPressed: () => _sendUdpCmd("Pos,7"),
-                              )
-                            ])),
-                        Container(width: 20),
-                        Container(
-                            color: const Color(0x66dddddd),
-                            child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.arrow_circle_up),
-                                    onPressed: () => _sendUdpCmd("Pos,3"),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.arrow_circle_down),
-                                    onPressed: () => _sendUdpCmd("Pos,2"),
-                                  )
-                                ]))
-                      ])
-                : _isStart && _isShowPanel
-                    ? const Icon(Icons.add, size: 30, color: Colors.white)
-                    : Container(width: 0)),
-        _isStart && _isShowPanel
-            ? Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  RawMaterialButton(
-                    onPressed: () => _sendUdpCmd("Ctr,3"),
-                    elevation: 2.0,
-                    fillColor: Colors.white,
-                    padding: const EdgeInsets.all(8.0),
-                    shape: const CircleBorder(),
-                    child: const Icon(Icons.touch_app, size: 30.0),
-                  ),
-                  Container(height: 10),
-                  RawMaterialButton(
-                    onPressed: _stopCloudXr,
-                    elevation: 2.0,
-                    fillColor: Colors.white,
-                    padding: const EdgeInsets.all(8.0),
-                    shape: const CircleBorder(),
-                    child: const Icon(Icons.stop, size: 30.0),
-                  ),
-                  Container(height: 10),
-                  RawMaterialButton(
-                    onPressed: () => _sendUdpCmd("KeyDown,230"),
-                    elevation: 2.0,
-                    fillColor: Colors.white,
-                    padding: const EdgeInsets.all(8.0),
-                    shape: const CircleBorder(),
-                    child: const Icon(Icons.lock_open_outlined, size: 30.0),
-                  ),
-                  Container(height: 10)
-                ])
-              ])
-            : Container(width: 0)
-      ]),
-    );
+        backgroundColor: Colors.black,
+        body: Center(
+            child: _showAppList
+                ? Container(
+                    color: const Color(0xffdddddd),
+                    width: 610,
+                    height: 300,
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _getList("games",
+                              const EdgeInsets.fromLTRB(5, 10, 10, 10)),
+                          _getList(
+                              "apps", const EdgeInsets.fromLTRB(10, 10, 5, 10)),
+                        ]))
+                : const CircularProgressIndicator()));
   }
 }

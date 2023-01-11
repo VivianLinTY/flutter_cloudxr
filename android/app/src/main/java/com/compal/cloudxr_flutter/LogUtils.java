@@ -3,7 +3,7 @@ package com.compal.cloudxr_flutter;
 import android.util.Log;
 
 public class LogUtils {
-    private static final String APP_TAG = "HelloCloudXr";
+    private static final String APP_TAG = "Compal-CloudXr";
     private static final boolean DEBUG = true;
 
     public static void v(String tag, String message) {
