@@ -16,12 +16,6 @@
 -->
 <resources>
   <string name="app_name">CloudXR ARCore Client</string>
-  <string name="host_cloud_anchor_str">Host a cloud anchor</string>
-  <string name="cloud_anchor_id_str">Cloud anchor id:</string>
-  <string name="cloud_server_ip_str">Enter CloudXR server IP:</string>
-  <string name="webrtc_room_id_str">WebRtc room id:</string>
-  <string name="webrtc_server_ip_str">Enter WebRTC server IP:</string>
-  <string name="webrtc_enable_mediapipe">Enable gesture</string>
   <string name="button_stop">STOP</string>
   <string name="button_start">START</string>
 </resources>

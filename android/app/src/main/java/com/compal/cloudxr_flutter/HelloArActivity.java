@@ -349,7 +349,7 @@ public class HelloArActivity extends FlutterActivity
     }
 
     protected void checkLaunchOptions() {
-        if (wasResumed || ServerIPDialog.isShowing())
+        if (wasResumed)
             return;
 
         LogUtils.v(TAG, "Checking launch options..");
