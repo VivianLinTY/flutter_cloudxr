@@ -41,6 +41,7 @@ class _MyAppListState extends State<MyAppList> {
   late Function _onSuccessCallback;
   bool _showAppList = true;
   bool _hasLaunchedGame = false;
+  bool _showServerField = false;
 
   Future<void> _connectToEdgeServer(
       String type, Map<String, dynamic> gameInfo) async {
@@ -112,8 +113,8 @@ class _MyAppListState extends State<MyAppList> {
                     return ListView.builder(
                         itemCount: listSize,
                         itemBuilder: (BuildContext context, int position) {
-                          return _getItem(context, gameJson[type], position,
-                              type);
+                          return _getItem(
+                              context, gameJson[type], position, type);
                         });
                   } else {
                     Future.delayed(const Duration(milliseconds: 2000), () {
@@ -153,23 +154,66 @@ class _MyAppListState extends State<MyAppList> {
   @override
   Widget build(BuildContext context) {
     _hasLaunchedGame = false;
+    int index = 0;
+
+    final serverTextController = TextEditingController(text: Utils.baseUrl);
+    final TextField serverText = TextField(
+        controller: serverTextController,
+        decoration: const InputDecoration(
+            filled: true,
+            fillColor: Colors.white70,
+            hintText: "Central server IP & Port"));
+
     return Scaffold(
         backgroundColor: Colors.black,
-        body: Center(
-            child: _showAppList
-                ? Container(
-                    color: const Color(0xffdddddd),
-                    width: 610,
-                    height: 300,
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _getList("games",
-                              const EdgeInsets.fromLTRB(5, 10, 10, 10)),
-                          _getList(
-                              "apps", const EdgeInsets.fromLTRB(10, 10, 5, 10)),
-                        ]))
-                : const CircularProgressIndicator()));
+        body: Stack(children: [
+          Center(
+              child: _showAppList
+                  ? Container(
+                      color: const Color(0xffdddddd),
+                      width: 610,
+                      height: 300,
+                      child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _getList("games",
+                                const EdgeInsets.fromLTRB(5, 10, 10, 10)),
+                            _getList("apps",
+                                const EdgeInsets.fromLTRB(10, 10, 5, 10)),
+                          ]))
+                  : const CircularProgressIndicator()),
+          Container(
+              alignment: Alignment.bottomRight,
+              child: TextButton(
+                  onPressed: () {
+                    index++;
+                    if (index > 4) {
+                      setState(() {
+                        _showServerField = true;
+                      });
+                    }
+                  },
+                  child: const SizedBox(width: 30, height: 30))),
+          _showServerField
+              ? Row(children: [
+                  SizedBox(width: 500, child: serverText),
+                  TextButton(
+                      onPressed: () async {
+                        await Utils.setSharePString(
+                            prefCentralServer, serverTextController.text);
+                        setState(() {
+                          _showServerField = false;
+                        });
+                      },
+                      child: const Text("save",
+                          style: TextStyle(
+                              fontSize: 30,
+                              backgroundColor: Colors.white60,
+                              color: Colors.black,
+                              letterSpacing: 3)))
+                ])
+              : Container(width: 0)
+        ]));
   }
 }

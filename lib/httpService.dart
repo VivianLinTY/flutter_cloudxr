@@ -1,4 +1,5 @@
 import 'package:cloudxr_flutter/log.dart';
+import 'package:cloudxr_flutter/utils.dart';
 import 'package:dio/dio.dart';
 
 const _tag = "HttpService";
@@ -6,14 +7,12 @@ const _tag = "HttpService";
 class HttpService {
   late Dio _dio;
 
-  final baseUrl = "http://192.168.3.55:5000/";
-
   HttpService() {
     _dio = Dio(BaseOptions(
-      baseUrl: baseUrl,
+      baseUrl: Utils.baseUrl,
     ));
 
-    initializeInterceptors();
+    _initializeInterceptors();
   }
 
   Future<Response> _request(String path, {required String method}) async {
@@ -32,7 +31,7 @@ class HttpService {
     return _request(path, method: "get");
   }
 
-  initializeInterceptors() {
+  _initializeInterceptors() {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
