@@ -40,16 +40,18 @@ class MyAppList extends StatefulWidget {
 class _MyAppListState extends State<MyAppList> {
   late Function _onSuccessCallback;
   bool _showAppList = true;
+  bool _hasLaunchedGame = false;
 
   Future<void> _connectToEdgeServer(
-      String type, Map<String, dynamic> gameInfo, bool hasLaunchedGame) async {
+      String type, Map<String, dynamic> gameInfo) async {
     String id = gameInfo["content_id"];
     String response;
     if (gameInfo["already_launched"]) {
       response = await Utils.sendGetRequest("$type/$id/resume");
     } else {
-      if (hasLaunchedGame) {
+      if (_hasLaunchedGame) {
         await Utils.sendGetRequest("/close");
+        _hasLaunchedGame = false;
       }
       response = await Utils.sendGetRequest("$type/$id/launch");
     }
@@ -58,13 +60,13 @@ class _MyAppListState extends State<MyAppList> {
       _onSuccessCallback(gameJson["game_server_ip"], id, type);
     } else {
       Future.delayed(const Duration(milliseconds: 2000), () {
-        _connectToEdgeServer(type, gameInfo, hasLaunchedGame);
+        _connectToEdgeServer(type, gameInfo);
       });
     }
   }
 
   Widget _getItem(BuildContext context, Map<String, dynamic> list, int position,
-      String type, bool hasLaunchedGame) {
+      String type) {
     Map<String, dynamic> gameInfo = list["$position"];
     return GestureDetector(
         child: Padding(
@@ -80,7 +82,7 @@ class _MyAppListState extends State<MyAppList> {
           setState(() {
             _showAppList = false;
           });
-          _connectToEdgeServer(type, gameInfo, hasLaunchedGame);
+          _connectToEdgeServer(type, gameInfo);
         });
   }
 
@@ -100,11 +102,10 @@ class _MyAppListState extends State<MyAppList> {
                   Map<String, dynamic> gameJson = jsonDecode(snapshot.data!);
                   int listSize = gameJson["total_num"];
                   if (gameJson["status"]) {
-                    bool hasLaunchedGame = false;
                     for (int i = 0; i < listSize; i++) {
                       Map<String, dynamic> gameInfo = gameJson[type]["$i"];
                       if (gameInfo["already_launched"]) {
-                        hasLaunchedGame = true;
+                        _hasLaunchedGame = true;
                         break;
                       }
                     }
@@ -112,7 +113,7 @@ class _MyAppListState extends State<MyAppList> {
                         itemCount: listSize,
                         itemBuilder: (BuildContext context, int position) {
                           return _getItem(context, gameJson[type], position,
-                              type, hasLaunchedGame);
+                              type);
                         });
                   } else {
                     Future.delayed(const Duration(milliseconds: 2000), () {
@@ -151,6 +152,7 @@ class _MyAppListState extends State<MyAppList> {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    _hasLaunchedGame = false;
     return Scaffold(
         backgroundColor: Colors.black,
         body: Center(
