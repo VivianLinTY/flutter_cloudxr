@@ -29,6 +29,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late DateTime _lastTouchTime;
   StreamSubscription? _streamSubscription;
   UDP? _udpSender;
+  Timer? _timer;
 
   Future<bool> _sendMessage(String message) async {
     String response = '';
@@ -50,7 +51,14 @@ class _MyHomePageState extends State<MyHomePage> {
         if ('stop_cloudxr' == message) {
           _isStart = false;
           _isShowMenu = false;
+          _timer = Timer(const Duration(seconds: 50), () {
+            _onBackPressed();
+          });
         } else if ('start_cloudxr' == message) {
+          if (null != _timer) {
+            _timer!.cancel();
+            _timer = null;
+          }
           _isStart = true;
         } else if (message.contains("Rot")) {
           _sendUdpCmd(message);
@@ -109,6 +117,9 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     Log.d(_tag, "initState");
+    _timer = Timer(const Duration(seconds: 50), () {
+      _onBackPressed();
+    });
     _streamSubscription = _messageEvents
         .receiveBroadcastStream()
         .listen(_onEvent, onError: _onError);
@@ -145,6 +156,16 @@ class _MyHomePageState extends State<MyHomePage> {
     Log.d(_tag, "dispose");
   }
 
+  void _onBackPressed() {
+    Navigator.pushAndRemoveUntil<dynamic>(
+      context,
+      MaterialPageRoute<dynamic>(
+        builder: (BuildContext context) => const MyAppList(),
+      ),
+      (route) => false, //if you want to disable back feature set to false
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -154,14 +175,7 @@ class _MyHomePageState extends State<MyHomePage> {
             : IconButton(
                 icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
                 onPressed: () {
-                  Navigator.pushAndRemoveUntil<dynamic>(
-                    context,
-                    MaterialPageRoute<dynamic>(
-                      builder: (BuildContext context) => const MyAppList(),
-                    ),
-                    (route) =>
-                        false, //if you want to disable back feature set to false
-                  );
+                  _onBackPressed();
                 }),
         Center(
             child: Text(_isStart ? '' : 'Touch panel to start cloudXR',
