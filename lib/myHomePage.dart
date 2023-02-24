@@ -124,14 +124,16 @@ class _MyHomePageState extends State<MyHomePage> {
         .receiveBroadcastStream()
         .listen(_onEvent, onError: _onError);
     String ip = widget.cloudXrIP;
-    _sendMessage('connect_to_cloudxr' + ip);
+    _sendMessage('connect_to_cloudxr' + ip);  //must not interpolation
     _initUdpClient();
     _sendHeadPos();
   }
 
   void _closeGameServer() async {
+    Log.d(_tag, "_closeGameServer");
     String response = await Utils.sendGetRequest("/close");
     Map<String, dynamic> gameJson = jsonDecode(response);
+    Log.d(_tag, "gameJson=$gameJson");
     if (!gameJson["status"]) {
       Future.delayed(const Duration(milliseconds: 2000), () {
         _closeGameServer();
@@ -150,144 +152,148 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     if (_isStart) {
       _stopCloudXr();
-      _closeGameServer();
     }
+    _closeGameServer();
     super.dispose();
     Log.d(_tag, "dispose");
   }
 
-  void _onBackPressed() {
-    Navigator.pushAndRemoveUntil<dynamic>(
+  Future<bool> _onBackPressed() async {
+    await Navigator.pushAndRemoveUntil<dynamic>(
       context,
       MaterialPageRoute<dynamic>(
         builder: (BuildContext context) => const MyAppList(),
       ),
       (route) => false, //if you want to disable back feature set to false
     );
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(children: [
-        _isShowMenu
-            ? Container(width: 0)
-            : IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                onPressed: () {
-                  _onBackPressed();
-                }),
-        Center(
-            child: Text(_isStart ? '' : 'Touch panel to start cloudXR',
-                style: const TextStyle(color: Colors.white))),
-        Center(
-            child: _isShowMenu && _isShowPanel
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                        Container(
-                            color: const Color(0x66dddddd),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                IconButton(
-                                  icon: const Icon(Icons.arrow_drop_up),
-                                  onPressed: () => _sendUdpCmd("Pos,5"),
-                                ),
-                                Row(children: [
+    return WillPopScope(
+        onWillPop: _onBackPressed,
+        child: Scaffold(
+          body: Stack(children: [
+            _isShowMenu
+                ? Container(width: 0)
+                : IconButton(
+                    icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                    onPressed: () {
+                      _onBackPressed();
+                    }),
+            Center(
+                child: Text(_isStart ? '' : 'Touch panel to start cloudXR',
+                    style: const TextStyle(color: Colors.white))),
+            Center(
+                child: _isShowMenu && _isShowPanel
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                            Container(
+                                color: const Color(0x66dddddd),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    IconButton(
+                                      icon: const Icon(Icons.arrow_drop_up),
+                                      onPressed: () => _sendUdpCmd("Pos,5"),
+                                    ),
+                                    Row(children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.arrow_left),
+                                        onPressed: () => _sendUdpCmd("Pos,0"),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.arrow_right),
+                                        onPressed: () => _sendUdpCmd("Pos,1"),
+                                      )
+                                    ]),
+                                    IconButton(
+                                      icon: const Icon(Icons.arrow_drop_down),
+                                      onPressed: () => _sendUdpCmd("Pos,4"),
+                                    )
+                                  ],
+                                )),
+                            Container(width: 20),
+                            Container(
+                                color: const Color(0x66dddddd),
+                                child: Row(children: [
                                   IconButton(
-                                    icon: const Icon(Icons.arrow_left),
-                                    onPressed: () => _sendUdpCmd("Pos,0"),
+                                    icon: const Icon(Icons.arrow_back),
+                                    onPressed: () => _sendUdpCmd("Pos,6"),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.arrow_right),
-                                    onPressed: () => _sendUdpCmd("Pos,1"),
+                                    icon: const Icon(Icons.arrow_forward),
+                                    onPressed: () => _sendUdpCmd("Pos,7"),
                                   )
-                                ]),
-                                IconButton(
-                                  icon: const Icon(Icons.arrow_drop_down),
-                                  onPressed: () => _sendUdpCmd("Pos,4"),
-                                )
-                              ],
-                            )),
-                        Container(width: 20),
-                        Container(
-                            color: const Color(0x66dddddd),
-                            child: Row(children: [
-                              IconButton(
-                                icon: const Icon(Icons.arrow_back),
-                                onPressed: () => _sendUdpCmd("Pos,6"),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.arrow_forward),
-                                onPressed: () => _sendUdpCmd("Pos,7"),
-                              )
-                            ])),
-                        Container(width: 20),
-                        Container(
-                            color: const Color(0x66dddddd),
-                            child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.arrow_circle_up),
-                                    onPressed: () => _sendUdpCmd("Pos,3"),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.arrow_circle_down),
-                                    onPressed: () => _sendUdpCmd("Pos,2"),
-                                  )
-                                ]))
-                      ])
-                : _isStart && _isShowPanel
-                    ? const Icon(Icons.add, size: 30, color: Colors.white)
-                    : Container(width: 0)),
-        _isStart && _isShowPanel
-            ? Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  RawMaterialButton(
-                    onPressed: () => _setMenuVisibility,
-                    elevation: 2.0,
-                    fillColor: Colors.white,
-                    padding: const EdgeInsets.all(8.0),
-                    shape: const CircleBorder(),
-                    child: const Icon(Icons.settings, size: 30.0),
-                  ),
-                  Container(height: 10),
-                  RawMaterialButton(
-                    onPressed: () => _sendUdpCmd("Ctr,3"),
-                    elevation: 2.0,
-                    fillColor: Colors.white,
-                    padding: const EdgeInsets.all(8.0),
-                    shape: const CircleBorder(),
-                    child: const Icon(Icons.touch_app, size: 30.0),
-                  ),
-                  Container(height: 10),
-                  RawMaterialButton(
-                    onPressed: _stopCloudXr,
-                    elevation: 2.0,
-                    fillColor: Colors.white,
-                    padding: const EdgeInsets.all(8.0),
-                    shape: const CircleBorder(),
-                    child: const Icon(Icons.stop, size: 30.0),
-                  ),
-                  Container(height: 10),
-                  RawMaterialButton(
-                    onPressed: () => _sendUdpCmd("KeyDown,230"),
-                    elevation: 2.0,
-                    fillColor: Colors.white,
-                    padding: const EdgeInsets.all(8.0),
-                    shape: const CircleBorder(),
-                    child: const Icon(Icons.lock_open_outlined, size: 30.0),
-                  ),
-                  Container(height: 10)
-                ])
-              ])
-            : Container(width: 0),
-      ]),
-    );
+                                ])),
+                            Container(width: 20),
+                            Container(
+                                color: const Color(0x66dddddd),
+                                child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.arrow_circle_up),
+                                        onPressed: () => _sendUdpCmd("Pos,3"),
+                                      ),
+                                      IconButton(
+                                        icon:
+                                            const Icon(Icons.arrow_circle_down),
+                                        onPressed: () => _sendUdpCmd("Pos,2"),
+                                      )
+                                    ]))
+                          ])
+                    : _isStart && _isShowPanel
+                        ? const Icon(Icons.add, size: 30, color: Colors.white)
+                        : Container(width: 0)),
+            _isStart && _isShowPanel
+                ? Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                    Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+                      RawMaterialButton(
+                        onPressed: () => _setMenuVisibility,
+                        elevation: 2.0,
+                        fillColor: Colors.white,
+                        padding: const EdgeInsets.all(8.0),
+                        shape: const CircleBorder(),
+                        child: const Icon(Icons.settings, size: 30.0),
+                      ),
+                      Container(height: 10),
+                      RawMaterialButton(
+                        onPressed: () => _sendUdpCmd("Ctr,3"),
+                        elevation: 2.0,
+                        fillColor: Colors.white,
+                        padding: const EdgeInsets.all(8.0),
+                        shape: const CircleBorder(),
+                        child: const Icon(Icons.touch_app, size: 30.0),
+                      ),
+                      Container(height: 10),
+                      RawMaterialButton(
+                        onPressed: _stopCloudXr,
+                        elevation: 2.0,
+                        fillColor: Colors.white,
+                        padding: const EdgeInsets.all(8.0),
+                        shape: const CircleBorder(),
+                        child: const Icon(Icons.stop, size: 30.0),
+                      ),
+                      Container(height: 10),
+                      RawMaterialButton(
+                        onPressed: () => _sendUdpCmd("KeyDown,230"),
+                        elevation: 2.0,
+                        fillColor: Colors.white,
+                        padding: const EdgeInsets.all(8.0),
+                        shape: const CircleBorder(),
+                        child: const Icon(Icons.lock_open_outlined, size: 30.0),
+                      ),
+                      Container(height: 10)
+                    ])
+                  ])
+                : Container(width: 0),
+          ]),
+        ));
   }
 }

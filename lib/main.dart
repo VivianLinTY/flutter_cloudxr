@@ -150,6 +150,27 @@ class _MyAppListState extends State<MyAppList> {
     Log.d(_tag, "dispose");
   }
 
+  Future<bool> _onBackPressed() async {
+    return (await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+              title: const Text('Are you sure?'),
+              content: const Text('Do you want to exit an App'),
+              actions: <Widget>[
+                GestureDetector(
+                  onTap: () => Navigator.pop(context, false),
+                  child: const Text("NO"),
+                ),
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context, true),
+                  child: const Text("YES"),
+                )
+              ]),
+        )) ??
+        false;
+  }
+
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
@@ -164,56 +185,58 @@ class _MyAppListState extends State<MyAppList> {
             fillColor: Colors.white70,
             hintText: "Central server IP & Port"));
 
-    return Scaffold(
-        backgroundColor: Colors.black,
-        body: Stack(children: [
-          Center(
-              child: _showAppList
-                  ? Container(
-                      color: const Color(0xffdddddd),
-                      width: 610,
-                      height: 300,
-                      child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _getList("games",
-                                const EdgeInsets.fromLTRB(5, 10, 10, 10)),
-                            _getList("apps",
-                                const EdgeInsets.fromLTRB(10, 10, 5, 10)),
-                          ]))
-                  : const CircularProgressIndicator()),
-          Container(
-              alignment: Alignment.bottomRight,
-              child: TextButton(
-                  onPressed: () {
-                    index++;
-                    if (index > 4) {
-                      setState(() {
-                        _showServerField = true;
-                      });
-                    }
-                  },
-                  child: const SizedBox(width: 30, height: 30))),
-          _showServerField
-              ? Row(children: [
-                  SizedBox(width: 500, child: serverText),
-                  TextButton(
-                      onPressed: () async {
-                        await Utils.setSharePString(
-                            prefCentralServer, serverTextController.text);
-                        setState(() {
-                          _showServerField = false;
-                        });
+    return WillPopScope(
+        onWillPop: _onBackPressed,
+        child: Scaffold(
+            backgroundColor: Colors.black,
+            body: Stack(children: [
+              Center(
+                  child: _showAppList
+                      ? Container(
+                          color: const Color(0xffdddddd),
+                          width: 610,
+                          height: 300,
+                          child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _getList("games",
+                                    const EdgeInsets.fromLTRB(5, 10, 10, 10)),
+                                _getList("apps",
+                                    const EdgeInsets.fromLTRB(10, 10, 5, 10)),
+                              ]))
+                      : const CircularProgressIndicator()),
+              Container(
+                  alignment: Alignment.bottomRight,
+                  child: TextButton(
+                      onPressed: () {
+                        index++;
+                        if (index > 4) {
+                          setState(() {
+                            _showServerField = true;
+                          });
+                        }
                       },
-                      child: const Text("save",
-                          style: TextStyle(
-                              fontSize: 30,
-                              backgroundColor: Colors.white60,
-                              color: Colors.black,
-                              letterSpacing: 3)))
-                ])
-              : Container(width: 0)
-        ]));
+                      child: const SizedBox(width: 30, height: 30))),
+              _showServerField
+                  ? Row(children: [
+                      SizedBox(width: 500, child: serverText),
+                      TextButton(
+                          onPressed: () async {
+                            await Utils.setSharePString(
+                                prefCentralServer, serverTextController.text);
+                            setState(() {
+                              _showServerField = false;
+                            });
+                          },
+                          child: const Text("save",
+                              style: TextStyle(
+                                  fontSize: 30,
+                                  backgroundColor: Colors.white60,
+                                  color: Colors.black,
+                                  letterSpacing: 3)))
+                    ])
+                  : Container(width: 0)
+            ])));
   }
 }
