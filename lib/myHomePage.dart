@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:cloudxr_flutter/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:udp/udp.dart';
 
+import 'constants.dart';
 import 'log.dart';
 import 'main.dart';
 
@@ -29,7 +29,8 @@ class _MyHomePageState extends State<MyHomePage> {
   late DateTime _lastTouchTime;
   StreamSubscription? _streamSubscription;
   UDP? _udpSender;
-  Timer? _timer;
+
+  // Timer? _timer;
 
   Future<bool> _sendMessage(String message) async {
     String response = '';
@@ -45,21 +46,36 @@ class _MyHomePageState extends State<MyHomePage> {
     await _sendMessage('stop_cloudxr');
   }
 
+  void _startApp() async {
+    Map<String, dynamic> gameJson =
+        await Utils.instance.sendPostRequest(context, "devices/start_app", {});
+    if (centralCodeSuccess == gameJson['resp_code']) {
+      Utils.instance.localStatus = deviceCodePlaying;
+    } else {
+      Future.delayed(const Duration(milliseconds: 2000), () {
+        _startApp();
+      });
+    }
+  }
+
   void _onEvent(message) {
     if (mounted) {
       setState(() {
         if ('stop_cloudxr' == message) {
           _isStart = false;
           _isShowMenu = false;
-          _timer = Timer(const Duration(seconds: 50), () {
-            _onBackPressed();
-          });
+          // _timer = Timer(const Duration(seconds: 50), () {
+          //   _onBackPressed();
+          // });
+          Utils.instance.localStatus = deviceCodeDisconnected;
         } else if ('start_cloudxr' == message) {
-          if (null != _timer) {
-            _timer!.cancel();
-            _timer = null;
-          }
+          // if (null != _timer) {
+          //   _timer!.cancel();
+          //   _timer = null;
+          // }
           _isStart = true;
+          Utils.instance.localStatus = deviceCodeConnected;
+          _startApp();
         } else if (message.contains("Rot")) {
           _sendUdpCmd(message);
         } else if (message.contains("touch")) {
@@ -115,26 +131,27 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void initState() {
+    Utils.instance.localStatus = deviceCodeDisconnected;
     super.initState();
     Log.d(_tag, "initState");
-    _timer = Timer(const Duration(seconds: 50), () {
-      _onBackPressed();
-    });
+    // _timer = Timer(const Duration(seconds: 50), () {
+    //   _onBackPressed();
+    // });
     _streamSubscription = _messageEvents
         .receiveBroadcastStream()
         .listen(_onEvent, onError: _onError);
     String ip = widget.cloudXrIP;
-    _sendMessage('connect_to_cloudxr' + ip);  //must not interpolation
+    _sendMessage('connect_to_cloudxr' + ip); //must not interpolation
     _initUdpClient();
     _sendHeadPos();
   }
 
   void _closeGameServer() async {
     Log.d(_tag, "_closeGameServer");
-    String response = await Utils.sendGetRequest("/close");
-    Map<String, dynamic> gameJson = jsonDecode(response);
+    Map<String, dynamic> gameJson =
+        await Utils.instance.sendDeleteRequest(context, "/devices/reserve");
     Log.d(_tag, "gameJson=$gameJson");
-    if (!gameJson["status"]) {
+    if (centralCodeSuccess != gameJson['resp_code']) {
       Future.delayed(const Duration(milliseconds: 2000), () {
         _closeGameServer();
       });
@@ -162,7 +179,7 @@ class _MyHomePageState extends State<MyHomePage> {
     await Navigator.pushAndRemoveUntil<dynamic>(
       context,
       MaterialPageRoute<dynamic>(
-        builder: (BuildContext context) => const MyAppList(),
+        builder: (BuildContext context) => const AppList(),
       ),
       (route) => false, //if you want to disable back feature set to false
     );

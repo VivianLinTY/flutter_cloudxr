@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:cloudxr_flutter/log.dart';
 import 'package:cloudxr_flutter/utils.dart';
 import 'package:dio/dio.dart';
@@ -8,27 +11,56 @@ class HttpService {
   late Dio _dio;
 
   HttpService() {
-    _dio = Dio(BaseOptions(
-      baseUrl: Utils.baseUrl,
-    ));
+    _dio = Dio(BaseOptions(baseUrl: Utils.instance.baseUrl));
 
     _initializeInterceptors();
   }
 
-  Future<Response> _request(String path, {required String method}) async {
+  Future<Response> get(String path) async {
     Response response;
     try {
-      response = await _dio.request(path, options: Options(method: method));
+      _dio.options.headers['authorization'] =
+          Utils.instance.prefs!.getString(prefToken);
+      response = await _dio.get(path);
     } on DioError catch (e) {
       Log.e(_tag, e.message);
       throw Exception(e.message);
     }
-
     return response;
   }
 
-  Future<Response> get(String path) async {
-    return _request(path, method: "get");
+  Future<Response> post(
+      String path, Map<String, dynamic> data, bool needToken) async {
+    Response response;
+    try {
+      if (needToken) {
+        _dio.options.headers['authorization'] =
+            Utils.instance.prefs!.getString(prefToken);
+      }
+      response = await _dio.post(
+        path,
+        data: jsonEncode(data),
+        options: Options(
+            headers: {HttpHeaders.contentTypeHeader: "application/json"}),
+      );
+    } on DioError catch (e) {
+      Log.e(_tag, e.message);
+      throw Exception(e.message);
+    }
+    return response;
+  }
+
+  Future<Response> delete(String path) async {
+    Response response;
+    try {
+      _dio.options.headers['authorization'] =
+          Utils.instance.prefs!.getString(prefToken);
+      response = await _dio.delete(path);
+    } on DioError catch (e) {
+      Log.e(_tag, e.message);
+      throw Exception(e.message);
+    }
+    return response;
   }
 
   _initializeInterceptors() {

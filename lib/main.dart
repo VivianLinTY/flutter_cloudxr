@@ -1,9 +1,8 @@
-import 'dart:convert';
-
 import 'package:cloudxr_flutter/myHomePage.dart';
 import 'package:cloudxr_flutter/utils.dart';
 import 'package:flutter/material.dart';
 
+import 'constants.dart';
 import 'log.dart';
 
 const _tag = "Main";
@@ -19,50 +18,157 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    Future keepAlive() async {
+      while (true) {
+        int status = Utils.instance.localStatus;
+        Log.d(_tag, "keepAlive localStatus $status");
+        Map<String, dynamic> params = {};
+        params['device_status'] = status;
+        params['status_des'] = "";
+        await Utils.instance.sendPostRequest(context, "devices/status", params);
+        await Future.delayed(const Duration(seconds: 30));
+      }
+    }
+
+    void initialize() async {
+      await Utils.instance.init();
+      await keepAlive();
+    }
+
+    initialize();
     return MaterialApp(
       title: 'Compal CloudXR',
       theme: ThemeData(
-          primarySwatch: Colors.blue,
           scaffoldBackgroundColor: Colors.transparent,
-          backgroundColor: Colors.transparent),
-      home: const MyAppList(),
+          colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.blue)
+              .copyWith(background: Colors.transparent)),
+      home: const LoginPage(),
     );
   }
 }
 
-class MyAppList extends StatefulWidget {
-  const MyAppList({Key? key}) : super(key: key);
-
-  @override
-  State<MyAppList> createState() => _MyAppListState();
+Future<bool> _onBackPressed(BuildContext context) async {
+  return (await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+            title: const Text('Are you sure?'),
+            content: const Text('Do you want to exit an App'),
+            actions: <Widget>[
+              GestureDetector(
+                onTap: () => Navigator.pop(context, false),
+                child: const Text("NO"),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => Navigator.pop(context, true),
+                child: const Text("YES"),
+              )
+            ]),
+      )) ??
+      false;
 }
 
-class _MyAppListState extends State<MyAppList> {
+class LoginPage extends StatelessWidget {
+  const LoginPage({Key? key}) : super(key: key);
+
+  // This widget is the root of your application.
+  @override
+  Widget build(BuildContext context) {
+    bool savePressed = false;
+    Utils.instance.localStatus = deviceCodeUnassigned;
+
+    final accountTextController = TextEditingController();
+    final TextField accountText = TextField(
+        controller: accountTextController,
+        decoration: const InputDecoration(
+            filled: true, fillColor: Colors.white70, hintText: "Account"));
+    final passwordTextController = TextEditingController();
+    final TextField passwordText = TextField(
+        controller: passwordTextController,
+        decoration: const InputDecoration(
+            filled: true, fillColor: Colors.white70, hintText: "Password"));
+
+    return WillPopScope(
+        onWillPop: () => _onBackPressed(context),
+        child: Scaffold(
+            backgroundColor: Colors.black,
+            body: Center(
+                child: SingleChildScrollView(
+                    //Fixed overflowed by column
+                    child: Column(
+                        mainAxisSize: MainAxisSize.max,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                  SizedBox(width: 300, child: accountText),
+                  const SizedBox(height: 10),
+                  SizedBox(width: 300, child: passwordText),
+                  const SizedBox(height: 10),
+                  TextButton(
+                      onPressed: () async {
+                        if (savePressed) {
+                          return;
+                        }
+                        savePressed = true;
+                        if (accountTextController.text.isNotEmpty &&
+                            passwordTextController.text.isNotEmpty) {
+                          Map<String, dynamic> params = {};
+                          params['account'] = accountTextController.text;
+                          params['password'] = passwordTextController.text;
+                          params['device_type'] = deviceTypeMobile;
+                          params['uuid'] = await Utils.instance.deviceId;
+                          Map<String, dynamic> gameJson = await Utils.instance
+                              .sendPostRequest(
+                                  context, "devices/login", params);
+                          if (gameJson.containsKey('data')) {
+                            Map<String, dynamic> data = gameJson['data'];
+                            await Utils.instance
+                                .setSharePString(prefToken, data['token']);
+                            if (context.mounted) {
+                              Navigator.pushAndRemoveUntil<dynamic>(
+                                context,
+                                MaterialPageRoute<dynamic>(
+                                    builder: (BuildContext context) =>
+                                        const AppList()),
+                                (route) =>
+                                    false, //if you want to disable back feature set to false
+                              );
+                            }
+                          }
+                        }
+                        savePressed = false;
+                      },
+                      child: const Text("login",
+                          style: TextStyle(
+                              fontSize: 30,
+                              backgroundColor: Colors.white60,
+                              color: Colors.black,
+                              letterSpacing: 3)))
+                ])))));
+  }
+}
+
+class AppList extends StatefulWidget {
+  const AppList({Key? key}) : super(key: key);
+
+  @override
+  State<AppList> createState() => _MyAppListState();
+}
+
+class _MyAppListState extends State<AppList> {
   late Function _onSuccessCallback;
   bool _showAppList = true;
-  bool _hasLaunchedGame = false;
   bool _showServerField = false;
 
   Future<void> _connectToEdgeServer(
       String type, Map<String, dynamic> gameInfo) async {
-    String id = gameInfo["content_id"];
-    String response;
-    if (gameInfo["already_launched"]) {
-      response = await Utils.sendGetRequest("$type/$id/resume");
-    } else {
-      if (_hasLaunchedGame) {
-        await Utils.sendGetRequest("/close");
-        _hasLaunchedGame = false;
+    String id = gameInfo["id"];
+    Map<String, dynamic> gameJson = await Utils.instance
+        .sendPostRequest(context, "devices/$type/$id/reserve", {});
+    if (gameJson.containsKey('data')) {
+      Map<String, dynamic> data = gameJson['data'];
+      if (data.containsKey('game_server_ip')) {
+        _onSuccessCallback(data['game_server_ip'], id, type);
       }
-      response = await Utils.sendGetRequest("$type/$id/launch");
-    }
-    Map<String, dynamic> gameJson = jsonDecode(response);
-    if (gameJson["status"]) {
-      _onSuccessCallback(gameJson["game_server_ip"], id, type);
-    } else {
-      Future.delayed(const Duration(milliseconds: 2000), () {
-        _connectToEdgeServer(type, gameInfo);
-      });
     }
   }
 
@@ -77,7 +183,7 @@ class _MyAppListState extends State<MyAppList> {
                   errorBuilder: (context, error, stackTrace) {
                 return const SizedBox(width: 270, height: 120);
               }),
-              Text(gameInfo["content_title"])
+              Text(gameInfo["title"])
             ])),
         onTap: () {
           setState(() {
@@ -92,35 +198,25 @@ class _MyAppListState extends State<MyAppList> {
         width: 290,
         padding: padding,
         alignment: Alignment.center,
-        child: FutureBuilder<String>(
+        child: FutureBuilder<Map<String, dynamic>>(
             //Get game list
-            future: Utils.sendGetRequest(type),
+            future: Utils.instance.sendGetRequest(context, type),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return Text("loading $type...", style: _popupTextStyle);
               } else if (snapshot.connectionState == ConnectionState.done) {
                 if (snapshot.hasData) {
-                  Map<String, dynamic> gameJson = jsonDecode(snapshot.data!);
-                  int listSize = gameJson["total_num"];
-                  if (gameJson["status"]) {
-                    for (int i = 0; i < listSize; i++) {
-                      Map<String, dynamic> gameInfo = gameJson[type]["$i"];
-                      if (gameInfo["already_launched"]) {
-                        _hasLaunchedGame = true;
-                        break;
-                      }
-                    }
-                    return ListView.builder(
-                        itemCount: listSize,
-                        itemBuilder: (BuildContext context, int position) {
-                          return _getItem(
-                              context, gameJson[type], position, type);
-                        });
-                  } else {
-                    Future.delayed(const Duration(milliseconds: 2000), () {
-                      return _getList(type, padding);
-                    });
+                  Map<String, dynamic> gameJson = snapshot.data!;
+                  if (!gameJson.containsKey('data')) {
+                    return const Text('Data empty.', style: _popupTextStyle);
                   }
+                  Map<String, dynamic> data = gameJson['data'];
+                  int listSize = data['total_num'];
+                  return ListView.builder(
+                      itemCount: listSize,
+                      itemBuilder: (BuildContext context, int position) {
+                        return _getItem(context, data['app'], position, type);
+                      });
                 }
               } else if (snapshot.hasError) {
                 return Text('loading $type error!!', style: _popupTextStyle);
@@ -131,6 +227,7 @@ class _MyAppListState extends State<MyAppList> {
 
   @override
   void initState() {
+    Utils.instance.localStatus = deviceCodeUnassigned;
     super.initState();
     Log.d(_tag, "initState");
     _onSuccessCallback = (ip, id, type) {
@@ -150,34 +247,13 @@ class _MyAppListState extends State<MyAppList> {
     Log.d(_tag, "dispose");
   }
 
-  Future<bool> _onBackPressed() async {
-    return (await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-              title: const Text('Are you sure?'),
-              content: const Text('Do you want to exit an App'),
-              actions: <Widget>[
-                GestureDetector(
-                  onTap: () => Navigator.pop(context, false),
-                  child: const Text("NO"),
-                ),
-                const SizedBox(height: 16),
-                GestureDetector(
-                  onTap: () => Navigator.pop(context, true),
-                  child: const Text("YES"),
-                )
-              ]),
-        )) ??
-        false;
-  }
-
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    _hasLaunchedGame = false;
     int index = 0;
 
-    final serverTextController = TextEditingController(text: Utils.baseUrl);
+    final serverTextController =
+        TextEditingController(text: Utils.instance.baseUrl);
     final TextField serverText = TextField(
         controller: serverTextController,
         decoration: const InputDecoration(
@@ -186,7 +262,7 @@ class _MyAppListState extends State<MyAppList> {
             hintText: "Central server IP & Port"));
 
     return WillPopScope(
-        onWillPop: _onBackPressed,
+        onWillPop: () => _onBackPressed(context),
         child: Scaffold(
             backgroundColor: Colors.black,
             body: Stack(children: [
@@ -194,14 +270,14 @@ class _MyAppListState extends State<MyAppList> {
                   child: _showAppList
                       ? Container(
                           color: const Color(0xffdddddd),
-                          width: 610,
+                          width: 300,
                           height: 300,
                           child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                _getList("games",
-                                    const EdgeInsets.fromLTRB(5, 10, 10, 10)),
+                                // _getList("games",
+                                //     const EdgeInsets.fromLTRB(5, 10, 10, 10)),
                                 _getList("apps",
                                     const EdgeInsets.fromLTRB(10, 10, 5, 10)),
                               ]))
@@ -223,7 +299,7 @@ class _MyAppListState extends State<MyAppList> {
                       SizedBox(width: 500, child: serverText),
                       TextButton(
                           onPressed: () async {
-                            await Utils.setSharePString(
+                            await Utils.instance.setSharePString(
                                 prefCentralServer, serverTextController.text);
                             setState(() {
                               _showServerField = false;
