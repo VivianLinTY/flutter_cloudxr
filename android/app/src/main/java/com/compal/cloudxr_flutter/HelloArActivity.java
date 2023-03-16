@@ -38,15 +38,11 @@
 
 package com.compal.cloudxr_flutter;
 
-import android.graphics.Bitmap;
 import android.hardware.display.DisplayManager;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.HandlerThread;
-import android.os.Message;
-import android.util.Size;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -68,8 +64,6 @@ import io.flutter.plugin.common.MethodChannel;
 
 import androidx.annotation.NonNull;
 
-import com.compal.utils.HandResultUtils;
-import com.compal.utils.WebRtcUtils;
 import com.google.android.material.snackbar.Snackbar;
 
 /**
@@ -129,9 +123,6 @@ public class HelloArActivity extends FlutterActivity
                     }
                 }
             };
-
-    private HandlerThread mHandlerThread;
-    private Handler mHandler;
 
     @NonNull
     @Override
@@ -209,38 +200,6 @@ public class HelloArActivity extends FlutterActivity
 
         planeStatusCheckingHandler = new Handler();
 
-        mHandlerThread = new HandlerThread("WebRtcThread");
-        mHandlerThread.start();
-        mHandler = new Handler(mHandlerThread.getLooper()) {
-            @Override
-            public void handleMessage(@NonNull Message msg) {
-                //for WebRTC
-                int[] rgbPixels = (int[]) msg.obj;
-                int width = msg.arg1;
-                int height = msg.arg2;
-                if (null != WebRtcUtils.sInstance) {
-                    try {
-                        if (WebRtcUtils.sInstance.peerConnectionClient != null && rgbPixels.length > 0) {
-                            WebRtcUtils.sInstance.peerConnectionClient.doStreaming(
-                                    rgbPixels, width, height);
-                            if (prefs.getBoolean(enableMediaPipePref, false)) {
-                                // Create a bitmap.
-                                Bitmap bmp = Bitmap.createBitmap(rgbPixels,
-                                        width, height, Bitmap.Config.ARGB_8888);
-                                HandResultUtils.getInstance().handleBitmap(HandResultUtils.getInstance().mirrorBitmap(bmp));
-                                bmp.recycle();
-                            }
-                        }
-                    } catch (Exception e) {
-                        runOnUiThread(() -> {
-                            Toast.makeText(HelloArActivity.this, "WebRtc Error. Stop it!", Toast.LENGTH_LONG).show();
-                            WebRtcUtils.sInstance.stopCall();
-                        });
-                    }
-                }
-            }
-        };
-
 //        Button button = new Button(this);
 //        FrameLayout.LayoutParams fl = new FrameLayout.LayoutParams(400, 100);
 //        fl.gravity = Gravity.CENTER;
@@ -311,10 +270,6 @@ public class HelloArActivity extends FlutterActivity
         prefedit.putBoolean(enableMediaPipePref, mediaPipe);
         prefedit.commit();
 
-        WebRtcUtils.ip = webRtcIp;
-        WebRtcUtils.roomId = webRtcRoomId;
-        WebRtcUtils.SignalingWsUrl = "ws://" + WebRtcUtils.ip;
-
         JniInterface.setArgs(nativeApplication, "-s " + cloudIp + " -c " +
                 (hostCloudAnchor ? "host" : cloudAnchorId));
 
@@ -340,12 +295,6 @@ public class HelloArActivity extends FlutterActivity
         // change or view resize.
         getSystemService(DisplayManager.class).registerDisplayListener(this, null);
         wasResumed = true;
-
-        if (null == WebRtcUtils.sInstance) {
-            WebRtcUtils.createInstance(new Size(viewportWidth, viewportHeight));
-        }
-        WebRtcUtils.sInstance.startCall(getApplicationContext(),
-                prefs.getBoolean(enableMediaPipePref, false));
     }
 
     protected void checkLaunchOptions() {
@@ -390,11 +339,6 @@ public class HelloArActivity extends FlutterActivity
     }
 
     private void doPause() {
-
-        if (null != WebRtcUtils.sInstance && null != WebRtcUtils.sInstance.peerConnectionClient) {
-            WebRtcUtils.sInstance.stopCall();
-        }
-
         surfaceView.onPause();
         JniInterface.onPause(nativeApplication);
 
@@ -415,7 +359,6 @@ public class HelloArActivity extends FlutterActivity
 
     @Override
     public void onDestroy() {
-        mHandlerThread.quitSafely();
         super.onDestroy();
 
         // Synchronized to avoid racing onDrawFrame.
@@ -484,8 +427,7 @@ public class HelloArActivity extends FlutterActivity
                     finish();
                 });
             } else {
-//                getCurrentFrame();
-                getCameraFrame();
+                JniInterface.getCameraFrame(nativeApplication);
             }
         }
     }
@@ -520,137 +462,4 @@ public class HelloArActivity extends FlutterActivity
     public void onDisplayChanged(int displayId) {
         viewportChanged = true;
     }
-
-    /**
-     * Call from the GLThread to save a picture of the current frame.
-     */
-//    private void getCurrentFrame() {
-//        int[] pixelData = new int[viewportWidth * viewportHeight];
-//
-//        // Read the pixels from the current GL frame.
-//        IntBuffer buf = IntBuffer.wrap(pixelData);
-//        buf.position(0);
-//        GLES20.glReadPixels(0, 0, viewportWidth, viewportHeight,
-//                GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf);
-//
-//        // Convert the pixel data from RGBA to what Android wants, ARGB.
-//        int[] bitmapData = new int[pixelData.length];
-//        for (int i = 0; i < viewportHeight; i++) {
-//            for (int j = 0; j < viewportWidth; j++) {
-//                int p = pixelData[i * viewportWidth + j];
-//                int b = (p & 0x00ff0000) >> 16;
-//                int r = (p & 0x000000ff) << 16;
-//                int ga = p & 0xff00ff00;
-//                bitmapData[(viewportHeight - i - 1) * viewportWidth + j] = ga | r | b;
-//            }
-//        }
-//        transferRgbToWebRtc(bitmapData, viewportWidth, viewportHeight);
-//    }
-
-    int fromByteArray(byte[] bytes) {
-        return ((bytes[0] & 0xFF) << 24) |
-                ((bytes[1] & 0xFF) << 16) |
-                ((bytes[2] & 0xFF) << 8) |
-                ((bytes[3] & 0xFF) << 0);
-    }
-
-    private void getCameraFrame() {
-        byte[] yuv = JniInterface.getCameraFrame(nativeApplication);
-        if (yuv.length > 0) {
-            byte[] vLengthB = new byte[4];
-            System.arraycopy(yuv, yuv.length - 4, vLengthB, 0, 4);
-            int vLength = fromByteArray(vLengthB);
-            byte[] uLengthB = new byte[4];
-            System.arraycopy(yuv, yuv.length - 8, uLengthB, 0, 4);
-            int uLength = fromByteArray(uLengthB);
-            byte[] yLengthB = new byte[4];
-            System.arraycopy(yuv, yuv.length - 12, yLengthB, 0, 4);
-            int yLength = fromByteArray(yLengthB);
-            byte[] uvPixelStrideB = new byte[4];
-            System.arraycopy(yuv, yuv.length - 16, uvPixelStrideB, 0, 4);
-            int uvPixelStride = fromByteArray(uvPixelStrideB);
-            byte[] uvStrideB = new byte[4];
-            System.arraycopy(yuv, yuv.length - 20, uvStrideB, 0, 4);
-            int uvStride = fromByteArray(uvStrideB);
-            byte[] yStrideB = new byte[4];
-            System.arraycopy(yuv, yuv.length - 24, yStrideB, 0, 4);
-            int yStride = fromByteArray(yStrideB);
-            byte[] heightB = new byte[4];
-            System.arraycopy(yuv, yuv.length - 28, heightB, 0, 4);
-            int height = fromByteArray(heightB);
-            byte[] widthB = new byte[4];
-            System.arraycopy(yuv, yuv.length - 32, widthB, 0, 4);
-            int width = fromByteArray(widthB);
-
-            byte[] yData = new byte[yLength];
-            System.arraycopy(yuv, 0, yData, 0, yLength);
-
-            byte[] uData = new byte[uLength];
-            System.arraycopy(yuv, yLength, uData, 0, uLength);
-
-            byte[] vData = new byte[vLength];
-            System.arraycopy(yuv, yLength + uLength, vData, 0, vLength);
-
-            int[] rgbPixels = new int[width * height];
-            ImageUtils.convertYUV420ToARGB8888(yData, uData, vData,
-                    width, height, yStride, uvStride, uvPixelStride, rgbPixels);
-            transferRgbToWebRtc(rgbPixels, width, height);
-        }
-    }
-
-    private void transferRgbToWebRtc(int[] rgbPixels, int width, int height) {
-        if (null == rgbPixels) {
-            return;
-        }
-        //for WebRTC
-        if (null != mHandler) {
-            Message message = new Message();
-            message.obj = rgbPixels;
-            message.arg1 = width;
-            message.arg2 = height;
-            mHandler.sendMessage(message);
-        }
-    }
-
-//    private Size chooseSupportedSize() {
-//        Display display = getWindowManager().getDefaultDisplay();
-//        android.graphics.Point displaySize = new android.graphics.Point();
-//        display.getSize(displaySize);
-//        Size targetSize = new Size(displaySize.x, displaySize.y);
-//        CameraManager cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-//        try {
-//            for (String id : cameraManager.getCameraIdList()) {
-//                CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(id);
-//                int facing = characteristics.get(CameraCharacteristics.LENS_FACING);
-//                if (facing == CameraCharacteristics.LENS_FACING_BACK) {
-//                    StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-//                    Size[] outputSizes = map.getOutputSizes(SurfaceTexture.class);
-//                    Size optimalSize = null;
-//                    double targetRatio = (double) targetSize.getWidth() / (double) targetSize.getHeight();
-//                    LogUtils.d(TAG, String.format("Camera target size ratio: %f width: %d", targetRatio, targetSize.getWidth()));
-//                    double minCost = 1.7976931348623157E308D;
-//                    int var10 = outputSizes.length;
-//
-//                    for (int var11 = 0; var11 < var10; ++var11) {
-//                        Size size = outputSizes[var11];
-//                        double aspectRatio = (double) size.getWidth() / (double) size.getHeight();
-//                        double ratioDiff = Math.abs(aspectRatio - targetRatio);
-//                        double cost = (ratioDiff > 0.25D ? 10000.0D + ratioDiff * (double) targetSize.getHeight() : 0.0D) + (double) Math.abs(size.getWidth() - targetSize.getWidth());
-//                        LogUtils.d(TAG, String.format("Camera size candidate width: %d height: %d ratio: %f cost: %f", size.getWidth(), size.getHeight(), aspectRatio, cost));
-//                        if (cost < minCost) {
-//                            optimalSize = size;
-//                            minCost = cost;
-//                        }
-//                    }
-//
-//                    if (optimalSize != null) {
-//                        LogUtils.d(TAG, String.format("Optimal camera size width: %d height: %d", optimalSize.getWidth(), optimalSize.getHeight()));
-//                    }
-//                    return optimalSize;
-//                }
-//            }
-//        } catch (Exception ignore) {
-//        }
-//        return new Size(320, 240);
-//    }
 }
