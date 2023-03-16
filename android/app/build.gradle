@@ -88,16 +88,17 @@ android {
 
     signingConfigs {
         release {
-            storeFile file('./dummy.jks')
-            storePassword 'nvidia'
-            keyAlias 'nvidia'
-            keyPassword 'nvidia'
+            storeFile file('../../KeyStore')
+            storePassword 'android'
+            keyAlias 'android'
+            keyPassword 'android'
         }
     }
 
     buildTypes {
         release {
             minifyEnabled true
+            useProguard true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
         }
