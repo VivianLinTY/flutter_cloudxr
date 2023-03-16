@@ -1,4 +1,4 @@
-const _debug = true;
+const _debug = false;
 
 class Log {
   static d(String tag, String message) {

@@ -6,6 +6,8 @@ const centralCodeNoResource = 100;
 const centralCodeNoDevice = 101;
 const centralCodeNoStreamVr = 102;
 const centralCodeNoCloudXr = 103;
+const centralCodeLoginDuplicate= 104;
+const centralCodeResourceOccupied = 105;
 const centralCodeUnknownError = 200;
 const centralCodeParamsError = 201;
 const centralCodeTokenInvalid = 202;
@@ -36,6 +38,10 @@ class Constants {
         return "StreamVR error.";
       case centralCodeNoCloudXr:
         return "CloudXR error.";
+      case centralCodeLoginDuplicate:
+        return "Duplicate login.";
+      case centralCodeResourceOccupied:
+        return "Resource is occupied.";
       case centralCodeUnknownError:
         return "Unknown error.";
       case centralCodeParamsError:

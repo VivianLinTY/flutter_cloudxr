@@ -48,7 +48,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _startApp() async {
     Map<String, dynamic> gameJson =
-        await Utils.instance.sendPostRequest(context, "devices/start_app", {});
+        await Utils.instance.sendPostRequest("devices/start_app", {});
     if (centralCodeSuccess == gameJson['resp_code']) {
       Utils.instance.localStatus = deviceCodePlaying;
     } else {
@@ -149,7 +149,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void _closeGameServer() async {
     Log.d(_tag, "_closeGameServer");
     Map<String, dynamic> gameJson =
-        await Utils.instance.sendDeleteRequest(context, "/devices/reserve");
+        await Utils.instance.sendDeleteRequest("/devices/reserve");
     Log.d(_tag, "gameJson=$gameJson");
     if (centralCodeSuccess != gameJson['resp_code']) {
       Future.delayed(const Duration(milliseconds: 2000), () {

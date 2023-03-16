@@ -12,6 +12,11 @@ void main() {
   runApp(const MyApp());
 }
 
+class NavigationService {
+  static GlobalKey<NavigatorState> navigatorKey =
+  GlobalKey<NavigatorState>();
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
@@ -25,7 +30,7 @@ class MyApp extends StatelessWidget {
         Map<String, dynamic> params = {};
         params['device_status'] = status;
         params['status_des'] = "";
-        await Utils.instance.sendPostRequest(context, "devices/status", params);
+        await Utils.instance.sendPostRequest("devices/status", params);
         await Future.delayed(const Duration(seconds: 30));
       }
     }
@@ -33,11 +38,23 @@ class MyApp extends StatelessWidget {
     void initialize() async {
       await Utils.instance.init();
       await keepAlive();
+      String? token = Utils.instance.getSharePString(prefToken);
+      if (null != token && token.isNotEmpty) {
+        if (context.mounted) {
+          Navigator.pushAndRemoveUntil<dynamic>(
+            context,
+            MaterialPageRoute<dynamic>(
+                builder: (BuildContext context) => const AppList()),
+            (route) => false, //if you want to disable back feature set to false
+          );
+        }
+      }
     }
 
     initialize();
     return MaterialApp(
       title: 'Compal CloudXR',
+      navigatorKey: NavigationService.navigatorKey,
       theme: ThemeData(
           scaffoldBackgroundColor: Colors.transparent,
           colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.blue)
@@ -117,8 +134,7 @@ class LoginPage extends StatelessWidget {
                           params['device_type'] = deviceTypeMobile;
                           params['uuid'] = await Utils.instance.deviceId;
                           Map<String, dynamic> gameJson = await Utils.instance
-                              .sendPostRequest(
-                                  context, "devices/login", params);
+                              .sendPostRequest("devices/login", params);
                           if (gameJson.containsKey('data')) {
                             Map<String, dynamic> data = gameJson['data'];
                             await Utils.instance
@@ -163,7 +179,7 @@ class _MyAppListState extends State<AppList> {
       String type, Map<String, dynamic> gameInfo) async {
     String id = gameInfo["id"];
     Map<String, dynamic> gameJson = await Utils.instance
-        .sendPostRequest(context, "devices/$type/$id/reserve", {});
+        .sendPostRequest("devices/$type/$id/reserve", {});
     if (gameJson.containsKey('data')) {
       Map<String, dynamic> data = gameJson['data'];
       if (data.containsKey('game_server_ip')) {
@@ -200,7 +216,7 @@ class _MyAppListState extends State<AppList> {
         alignment: Alignment.center,
         child: FutureBuilder<Map<String, dynamic>>(
             //Get game list
-            future: Utils.instance.sendGetRequest(context, type),
+            future: Utils.instance.sendGetRequest(type),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return Text("loading $type...", style: _popupTextStyle);

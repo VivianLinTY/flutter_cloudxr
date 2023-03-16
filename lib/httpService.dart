@@ -20,7 +20,7 @@ class HttpService {
     Response response;
     try {
       _dio.options.headers['authorization'] =
-          Utils.instance.prefs!.getString(prefToken);
+          Utils.instance.getSharePString(prefToken);
       response = await _dio.get(path);
     } on DioError catch (e) {
       Log.e(_tag, e.message);
@@ -35,7 +35,7 @@ class HttpService {
     try {
       if (needToken) {
         _dio.options.headers['authorization'] =
-            Utils.instance.prefs!.getString(prefToken);
+            Utils.instance.getSharePString(prefToken);
       }
       response = await _dio.post(
         path,
@@ -54,7 +54,7 @@ class HttpService {
     Response response;
     try {
       _dio.options.headers['authorization'] =
-          Utils.instance.prefs!.getString(prefToken);
+          Utils.instance.getSharePString(prefToken);
       response = await _dio.delete(path);
     } on DioError catch (e) {
       Log.e(_tag, e.message);

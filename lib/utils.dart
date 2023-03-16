@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:encrypt/encrypt.dart' as Encrypt;
+import 'package:encrypt/encrypt.dart';
 
 import 'constants.dart';
 import 'httpService.dart';
@@ -17,11 +19,14 @@ const _tag = "Utils";
 const prefCentralServer = "central_server";
 const prefToken = "token";
 
+const String _key = "compal32lengthsupersecrettooken1";
+
 class Utils {
   String? deviceId;
-  SharedPreferences? prefs;
+  SharedPreferences? _prefs;
   String baseUrl = "http://192.168.3.55:5000/";
   int localStatus = edgeCodeUnassigned;
+  Encrypt.Encrypter? _encrypter;
 
   /// private constructor
   Utils._();
@@ -30,8 +35,12 @@ class Utils {
   static final instance = Utils._();
 
   Future init() async {
+    final key = Encrypt.Key.fromUtf8(_key);
+    _encrypter = Encrypt.Encrypter(
+        Encrypt.AES(key, mode: Encrypt.AESMode.cbc, padding: 'PKCS7'));
+
     deviceId = await _getId();
-    prefs ??= await SharedPreferences.getInstance();
+    _prefs ??= await SharedPreferences.getInstance();
   }
 
   Future<String?> _getId() async {
@@ -48,37 +57,51 @@ class Utils {
   }
 
   Future<void> setSharePString(String key, String value) async {
-    prefs!.setString(key, value);
+    _prefs!.setString(key, value.isNotEmpty ? _aesEncode(value) : value);
     Log.d(_tag, "setSharePString key=$key value=$value");
+  }
+
+  String? getSharePString(String key) {
+    String? data = _prefs!.getString(key);
+    return null == data || data.isEmpty ? data : _aesDecode(data);
   }
 
   bool _isLoginApi(String path) {
     return path.contains("login");
   }
 
-  void _goToLogin(BuildContext context) {
+  void _goToLogin() {
+    Utils.instance.setSharePString(prefToken, "");
+    BuildContext? context = NavigationService.navigatorKey.currentContext;
+    if (null == context) {
+      Log.d(_tag, "context is null.");
+      return;
+    }
     if (context.mounted) {
-      Navigator.pushAndRemoveUntil<dynamic>(
-        context,
-        MaterialPageRoute<dynamic>(
-            builder: (BuildContext context) => const LoginPage()),
-        (route) => false, //if you want to disable back feature set to false
-      );
+      try {
+        Navigator.pushAndRemoveUntil<dynamic>(
+          context,
+          MaterialPageRoute<dynamic>(
+              builder: (BuildContext context) => const LoginPage()),
+          (route) => false, //if you want to disable back feature set to false
+        );
+      } catch (_) {
+        Navigator.pushNamed(context, "/");
+      }
     }
   }
 
-  Future<Map<String, dynamic>> sendGetRequest(
-      BuildContext context, String path) async {
-    String? centralServer = prefs!.getString(prefCentralServer);
+  Future<Map<String, dynamic>> sendGetRequest(String path) async {
+    String? centralServer = getSharePString(prefCentralServer);
     if (null == centralServer) {
-      prefs!.setString(prefCentralServer, baseUrl);
+      setSharePString(prefCentralServer, baseUrl);
     } else {
       baseUrl = centralServer;
     }
 
-    String? token = prefs!.getString(prefToken);
+    String? token = getSharePString(prefToken);
     if (token == null) {
-      _goToLogin(context);
+      _goToLogin();
       return {};
     }
 
@@ -91,7 +114,7 @@ class Utils {
       Log.d(_tag, jsonString);
       if (jsonString.isNotEmpty) {
         map = jsonDecode(jsonString);
-        _handleResponseCode(context, map);
+        _handleResponseCode(map);
       }
     } catch (e) {
       Log.d(_tag, "path=$path, error=$e");
@@ -101,17 +124,17 @@ class Utils {
   }
 
   Future<Map<String, dynamic>> sendPostRequest(
-      BuildContext context, String path, Map<String, dynamic> data) async {
-    String? centralServer = prefs!.getString(prefCentralServer);
+      String path, Map<String, dynamic> data) async {
+    String? centralServer = getSharePString(prefCentralServer);
     if (null == centralServer) {
-      prefs!.setString(prefCentralServer, baseUrl);
+      setSharePString(prefCentralServer, baseUrl);
     } else {
       baseUrl = centralServer;
     }
 
-    String? token = prefs!.getString(prefToken);
+    String? token = getSharePString(prefToken);
     if (!_isLoginApi(path) && token == null) {
-      _goToLogin(context);
+      _goToLogin();
       return {};
     }
 
@@ -125,7 +148,7 @@ class Utils {
       Log.d(_tag, jsonString);
       if (jsonString.isNotEmpty) {
         map = jsonDecode(jsonString);
-        _handleResponseCode(context, map);
+        _handleResponseCode(map);
       }
     } catch (e) {
       Log.d(_tag, "path=$path, data=$data, error=$e");
@@ -134,11 +157,10 @@ class Utils {
     return map;
   }
 
-  Future<Map<String, dynamic>> sendDeleteRequest(
-      BuildContext context, String path) async {
-    String? token = prefs!.getString(prefToken);
+  Future<Map<String, dynamic>> sendDeleteRequest(String path) async {
+    String? token = getSharePString(prefToken);
     if (token == null) {
-      _goToLogin(context);
+      _goToLogin();
       return {};
     }
 
@@ -151,7 +173,7 @@ class Utils {
       Log.d(_tag, jsonString);
       if (jsonString.isNotEmpty) {
         map = jsonDecode(jsonString);
-        _handleResponseCode(context, map);
+        _handleResponseCode(map);
       }
     } catch (e) {
       Log.d(_tag, "path=$path, error=$e");
@@ -160,13 +182,13 @@ class Utils {
     return map;
   }
 
-  _handleResponseCode(BuildContext context, Map<String, dynamic> map) {
+  _handleResponseCode(Map<String, dynamic> map) {
     if (map.containsKey('resp_code')) {
       int respCode = map['resp_code'];
       if (centralCodeSuccess != respCode) {
         showToast(Constants.getCentralCodeError(respCode));
         if (centralCodeTokenInvalid == respCode) {
-          _goToLogin(context);
+          _goToLogin();
         }
       }
     } else if (map.containsKey('data')) {
@@ -183,5 +205,18 @@ class Utils {
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.CENTER,
         fontSize: 16.0);
+  }
+
+  String _aesEncode(String content) {
+    final iv = IV.fromLength(16);
+    Encrypted encrypted = _encrypter!.encrypt(content, iv: iv);
+    return encrypted.base64;
+  }
+
+  String _aesDecode(String content) {
+    final iv = IV.fromLength(16);
+    String decrypted =
+        _encrypter!.decrypt(Encrypted.fromBase64(content), iv: iv);
+    return decrypted;
   }
 }
