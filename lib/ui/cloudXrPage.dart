@@ -5,24 +5,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:udp/udp.dart';
 
-import 'constants.dart';
-import 'log.dart';
-import 'main.dart';
+import '../constants.dart';
+import '../httpUtils.dart';
+import '../log.dart';
+import 'appList.dart';
 
-const _tag = "MyHomePage";
+const _tag = "cloudXrPage";
 const _platformMessages = MethodChannel('com.compal.cloudxr/messages');
 const _messageEvents = EventChannel('com.compal.cloudxr/events');
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.cloudXrIP}) : super(key: key);
+class CloudXrPage extends StatefulWidget {
+  static const String CloudXrPageRoute = 'CloudXrPage';
+
+  const CloudXrPage({Key? key, required this.cloudXrIP}) : super(key: key);
 
   final String cloudXrIP;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<CloudXrPage> createState() => _CloudXrPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _CloudXrPageState extends State<CloudXrPage> {
   bool _isStart = false;
   bool _isShowPanel = false; //All touch panel
   bool _isShowMenu = false; //Only menu panel
@@ -46,51 +49,60 @@ class _MyHomePageState extends State<MyHomePage> {
     await _sendMessage('stop_cloudxr');
   }
 
+  void _releaseCloudXr() async {
+    await _sendMessage('disconnect_to_cloudxr');
+  }
+
   void _startApp() async {
-    Map<String, dynamic> gameJson =
-        await Utils.instance.sendPostRequest("devices/start_app", {});
-    if (centralCodeSuccess == gameJson['resp_code']) {
-      Utils.instance.localStatus = deviceCodePlaying;
+    Map<String, dynamic> syncJson = await HttpUtils.instance.syncStatus(true);
+    if (centralCodeSuccess == syncJson[TAG_RESPONSE_CODE]) {
+      await Future.delayed(const Duration(milliseconds: 1000), () {});
+      Map<String, dynamic> gameJson =
+          await HttpUtils.instance.retryPostRequest("devices/start_app", {});
+      if (centralCodeSuccess == gameJson[TAG_RESPONSE_CODE]) {
+        HttpUtils.instance.localStatus = deviceCodePlaying;
+      }
     } else {
-      Future.delayed(const Duration(milliseconds: 2000), () {
-        _startApp();
-      });
+      _onBackPressed();
     }
   }
 
   void _onEvent(message) {
     if (mounted) {
-      setState(() {
-        if ('stop_cloudxr' == message) {
-          _isStart = false;
-          _isShowMenu = false;
-          // _timer = Timer(const Duration(seconds: 50), () {
-          //   _onBackPressed();
-          // });
-          Utils.instance.localStatus = deviceCodeDisconnected;
-        } else if ('start_cloudxr' == message) {
-          // if (null != _timer) {
-          //   _timer!.cancel();
-          //   _timer = null;
-          // }
-          _isStart = true;
-          Utils.instance.localStatus = deviceCodeConnected;
-          _startApp();
-        } else if (message.contains("Rot")) {
-          _sendUdpCmd(message);
-        } else if (message.contains("touch")) {
-          _isShowPanel = true;
-          _lastTouchTime = DateTime.now();
-          Future.delayed(const Duration(seconds: 5), () {
-            DateTime now = DateTime.now();
-            if (now.millisecondsSinceEpoch -
-                    _lastTouchTime.millisecondsSinceEpoch >=
-                5000) {
-              _hidePanel();
-            }
+      if ('stop_cloudxr' == message) {
+        if (mounted && (_isStart || _isShowMenu)) {
+          setState(() {
+            _isStart = false;
+            _isShowMenu = false;
           });
         }
-      });
+        HttpUtils.instance.localStatus = deviceCodeDisconnected;
+      } else if ('start_cloudxr' == message) {
+        if (mounted && !_isStart) {
+          setState(() {
+            _isStart = true;
+          });
+        }
+        HttpUtils.instance.localStatus = deviceCodeConnected;
+        _startApp();
+      } else if (message.contains("Rot")) {
+        _sendUdpCmd(message);
+      } else if (message.contains("touch")) {
+        if (mounted && !_isShowPanel) {
+          setState(() {
+            _isShowPanel = true;
+          });
+        }
+        _lastTouchTime = DateTime.now();
+        Future.delayed(const Duration(seconds: 5), () {
+          DateTime now = DateTime.now();
+          if (now.millisecondsSinceEpoch -
+                  _lastTouchTime.millisecondsSinceEpoch >=
+              5000) {
+            _hidePanel();
+          }
+        });
+      }
     }
   }
 
@@ -118,7 +130,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _hidePanel() {
-    if (mounted) {
+    if (mounted && _isShowPanel) {
       setState(() {
         _isShowPanel = false;
       });
@@ -131,9 +143,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void initState() {
-    Utils.instance.localStatus = deviceCodeDisconnected;
+    HttpUtils.instance.localStatus = deviceCodeDisconnected;
     super.initState();
-    Log.d(_tag, "initState");
     // _timer = Timer(const Duration(seconds: 50), () {
     //   _onBackPressed();
     // });
@@ -148,18 +159,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _closeGameServer() async {
     Log.d(_tag, "_closeGameServer");
-    Map<String, dynamic> gameJson =
-        await Utils.instance.sendDeleteRequest("/devices/reserve");
-    Log.d(_tag, "gameJson=$gameJson");
-    if (centralCodeSuccess != gameJson['resp_code']) {
-      Future.delayed(const Duration(milliseconds: 2000), () {
-        _closeGameServer();
-      });
-    }
+    await HttpUtils.instance.sendPostRequest("devices/stop_app", {});
+    await HttpUtils.instance.sendDeleteRequest("/devices/reserve");
   }
 
   @override
   void dispose() {
+    if (_isStart) {
+      _stopCloudXr();
+    }
+    _releaseCloudXr();
     if (null != _streamSubscription) {
       _streamSubscription!.cancel();
       _streamSubscription = null;
@@ -167,27 +176,22 @@ class _MyHomePageState extends State<MyHomePage> {
     if (null != _udpSender) {
       _udpSender!.closed;
     }
-    if (_isStart) {
-      _stopCloudXr();
-    }
     _closeGameServer();
     super.dispose();
-    Log.d(_tag, "dispose");
   }
 
   Future<bool> _onBackPressed() async {
-    await Navigator.pushAndRemoveUntil<dynamic>(
-      context,
-      MaterialPageRoute<dynamic>(
-        builder: (BuildContext context) => const AppList(),
-      ),
-      (route) => false, //if you want to disable back feature set to false
-    );
+    await Navigator.pushReplacement(
+        context,
+        MaterialPageRoute<dynamic>(
+            builder: (BuildContext context) => const AppList()));
     return true;
   }
 
   @override
   Widget build(BuildContext context) {
+    Log.d(_tag, "build _isShowMenu= $_isShowMenu, _isShowPanel= $_isShowPanel");
+    Utils.instance.currentRouteName = CloudXrPage.CloudXrPageRoute;
     return WillPopScope(
         onWillPop: _onBackPressed,
         child: Scaffold(
@@ -272,7 +276,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 ? Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                     Column(mainAxisAlignment: MainAxisAlignment.end, children: [
                       RawMaterialButton(
-                        onPressed: () => _setMenuVisibility,
+                        onPressed: _setMenuVisibility,
                         elevation: 2.0,
                         fillColor: Colors.white,
                         padding: const EdgeInsets.all(8.0),

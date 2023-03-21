@@ -38,6 +38,9 @@
 
 package com.compal.cloudxr_flutter;
 
+import android.content.ComponentName;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.hardware.display.DisplayManager;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
@@ -223,6 +226,10 @@ public class HelloArActivity extends FlutterActivity
                         result.success("1");
                         findViewById(android.R.id.content).postDelayed(() ->
                                 JniInterface.onTouched(nativeApplication, 0, 0, true), 200);
+                    } else if (call.method.equals("disconnect_to_cloudxr")) {
+                        result.success("1");
+                        surfaceView.onPause();
+                        JniInterface.onPause(nativeApplication);
                     } else if (call.method.contains("connect_to_cloudxr")) {
                         result.success("1");
                         String ip = call.method.replaceAll("connect_to_cloudxr", "");
@@ -424,7 +431,7 @@ public class HelloArActivity extends FlutterActivity
                 // need to shut down.
                 runOnUiThread(() -> {
                     Toast.makeText(getApplicationContext(), "CloudXR ARCore Client: Error [" + status + "], see logs for detail.  Exiting.", Toast.LENGTH_LONG).show();
-                    finish();
+                    triggerRebirth();
                 });
             } else {
                 JniInterface.getCameraFrame(nativeApplication);
@@ -461,5 +468,14 @@ public class HelloArActivity extends FlutterActivity
     @Override
     public void onDisplayChanged(int displayId) {
         viewportChanged = true;
+    }
+
+    public void triggerRebirth() {
+        PackageManager packageManager = getPackageManager();
+        Intent intent = packageManager.getLaunchIntentForPackage(getPackageName());
+        ComponentName componentName = intent.getComponent();
+        Intent mainIntent = Intent.makeRestartActivityTask(componentName);
+        startActivity(mainIntent);
+        finish();
     }
 }
