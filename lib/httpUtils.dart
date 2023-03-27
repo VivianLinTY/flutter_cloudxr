@@ -78,7 +78,7 @@ class HttpUtils {
 
     String? token = Utils.instance.getSharePString(prefToken);
     if (!_isLoginApi(path) && token == null) {
-      _goToLogin();
+      goToLogin();
       return {};
     }
 
@@ -104,7 +104,7 @@ class HttpUtils {
   Future<Map<String, dynamic>> sendDeleteRequest(String path) async {
     String? token = Utils.instance.getSharePString(prefToken);
     if (token == null) {
-      _goToLogin();
+      goToLogin();
       return {};
     }
 
@@ -136,7 +136,7 @@ class HttpUtils {
 
     String? token = Utils.instance.getSharePString(prefToken);
     if (token == null) {
-      _goToLogin();
+      goToLogin();
       return {};
     }
 
@@ -175,7 +175,7 @@ class HttpUtils {
             Utils.instance.showToast(Constants.getCentralCodeError(respCode));
           }
         }
-        await errorHandleForEdgeStatus(respCode, retry);
+        await errorHandleForStatus(respCode, retry);
       } else {
         if (map.containsKey(TAG_DATA)) {
           Map<String, dynamic> data = map[TAG_DATA];
@@ -188,7 +188,7 @@ class HttpUtils {
     }
   }
 
-  Future<void> errorHandleForEdgeStatus(int status, bool retry) async {
+  Future<void> errorHandleForStatus(int status, bool retry) async {
     switch (status) {
       case centralCodeLoginDuplicate:
         if (Utils.instance.hasToken()) {
@@ -199,10 +199,11 @@ class HttpUtils {
         await sendDeleteRequest("devices/reserve");
         break;
       case centralCodeTokenInvalid:
-        _goToLogin();
+        goToLogin();
         break;
       case centralCodeUnknownError:
         //already playing
+        //not playing
         break;
       default:
         if (!retry) {
@@ -231,7 +232,7 @@ class HttpUtils {
     return path.contains("login");
   }
 
-  void _goToLogin() {
+  void goToLogin() {
     Utils.instance.setSharePString(prefToken, "");
     BuildContext? context = NavigationService.navigatorKey.currentContext;
     if (null == context) {

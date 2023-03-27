@@ -45,6 +45,13 @@ class _MyAppListState extends State<AppList> {
       BuildContext context, List<dynamic> list, int position, String type) {
     AppInfo gameInfo = list[position];
     return GestureDetector(
+        onTap: () {
+          setState(() {
+            _showAppList = false;
+          });
+          _connectToEdgeServer(type, gameInfo);
+        },
+        behavior: HitTestBehavior.opaque,
         child: Padding(
             padding: const EdgeInsets.all(5),
             child: Column(children: [
@@ -53,14 +60,7 @@ class _MyAppListState extends State<AppList> {
                 return const SizedBox(width: 270, height: 120);
               }),
               Text(gameInfo.title)
-            ])),
-        onTap: () {
-          setState(() {
-            _showAppList = false;
-          });
-          _connectToEdgeServer(type, gameInfo);
-        },
-        behavior: HitTestBehavior.opaque);
+            ])));
   }
 
   Widget _getList(String type, EdgeInsets padding) {
@@ -152,6 +152,17 @@ class _MyAppListState extends State<AppList> {
                                     const EdgeInsets.fromLTRB(10, 10, 5, 10)),
                               ]))
                       : const CircularProgressIndicator()),
+              Container(
+                  alignment: Alignment.topRight,
+                  child: IconButton(
+                      icon: const Icon(Icons.logout, color: Colors.white, size: 30),
+                      onPressed: () async {
+                        Map<String, dynamic> respJson = await HttpUtils.instance
+                            .sendPostRequest("devices/logout", {});
+                        if (centralCodeSuccess == respJson[TAG_RESPONSE_CODE]) {
+                          HttpUtils.instance.goToLogin();
+                        }
+                      })),
               Container(
                   alignment: Alignment.bottomRight,
                   child: TextButton(

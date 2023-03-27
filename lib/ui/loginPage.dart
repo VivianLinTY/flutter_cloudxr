@@ -46,7 +46,8 @@ class LoginPage extends StatelessWidget {
                   const SizedBox(height: 10),
                   SizedBox(width: 300, child: passwordText),
                   const SizedBox(height: 10),
-                  TextButton(
+                  IconButton(
+                      icon: const Icon(Icons.login, color: Colors.white, size: 30),
                       onPressed: () async {
                         Log.v(_tag, "onPressed $savePressed");
                         if (savePressed) {
@@ -60,7 +61,8 @@ class LoginPage extends StatelessWidget {
                           params[TAG_PASSWORD] = passwordTextController.text;
                           params[TAG_DEVICE_TYPE] = deviceTypeMobile;
                           params[TAG_UUID] = await Utils.instance.deviceId;
-                          Map<String, dynamic> gameJson = await HttpUtils.instance
+                          Map<String, dynamic> gameJson = await HttpUtils
+                              .instance
                               .sendPostRequest("devices/login", params);
                           if (gameJson.containsKey(TAG_DATA)) {
                             Map<String, dynamic> data = gameJson[TAG_DATA];
@@ -76,13 +78,7 @@ class LoginPage extends StatelessWidget {
                           }
                         }
                         savePressed = false;
-                      },
-                      child: const Text("login",
-                          style: TextStyle(
-                              fontSize: 30,
-                              backgroundColor: Colors.white60,
-                              color: Colors.black,
-                              letterSpacing: 3)))
+                      })
                 ])))));
   }
 }
